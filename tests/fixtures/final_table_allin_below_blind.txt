@@ -1,0 +1,39 @@
+PokerStars Hand #500300001: Tournament #112233445, $100+$9 USD Hold'em No Limit - Level XV (2000/4000) - 2024/02/03 23:15:00 ET
+Table '112233445 8' 4-max Seat #1 is the button
+Seat 1: Qa (45000 in chips)
+Seat 2: Ra (1400 in chips)
+Seat 3: Sa (28000 in chips)
+Seat 4: Ta (19000 in chips)
+Qa: posts the ante 500
+Ra: posts the ante 500
+Sa: posts the ante 500
+Ta: posts the ante 500
+Ra: posts small blind 900 and is all-in
+Sa: posts big blind 4000
+*** HOLE CARDS ***
+Dealt to Qa [Jc Jh]
+Ta: folds
+Qa: calls 4000
+Sa: checks
+*** FLOP *** [Ac Td 7h]
+Sa: checks
+Qa: checks
+*** TURN *** [Ac Td 7h] [3d]
+Sa: checks
+Qa: checks
+*** RIVER *** [Ac Td 7h 3d] [9s]
+Sa: checks
+Qa: checks
+*** SHOW DOWN ***
+Ra: shows [Ah Kh] (a pair of Aces)
+Sa: shows [Qs Qd] (a pair of Queens)
+Qa: shows [Jc Jh] (a pair of Jacks)
+Ra collected 4700 from main pot
+Sa collected 6200 from side pot
+*** SUMMARY ***
+Total pot 10900 Main pot 4700. Side pot 6200. | Rake 0
+Board [Ac Td 7h 3d 9s]
+Seat 1: Qa (button) showed [Jc Jh] and lost with a pair of Jacks
+Seat 2: Ra (small blind) showed [Ah Kh] and won (4700) with a pair of Aces
+Seat 3: Sa (big blind) showed [Qs Qd] and won (6200) with a pair of Queens
+Seat 4: Ta folded before Flop (didn't bet)

@@ -1,0 +1,41 @@
+PokerStars Hand #500100002: Tournament #112233445, $10+$1 USD Hold'em No Limit - Level VII (200/400) - 2024/02/01 20:10:00 ET
+Table '112233445 2' 6-max Seat #3 is the button
+Seat 1: Bea (8000 in chips)
+Seat 2: Caro (6500 in chips)
+Seat 3: Dan (7200 in chips)
+Seat 4: Eli (5000 in chips)
+Seat 5: Fon (9200 in chips)
+Seat 6: Gus (4300 in chips)
+Bea: posts the ante 50
+Caro: posts the ante 50
+Dan: posts the ante 50
+Eli: posts the ante 50
+Fon: posts the ante 50
+Gus: posts the ante 50
+Eli: posts small blind 200
+Fon: posts big blind 400
+*** HOLE CARDS ***
+Dealt to Gus [Ac Ad]
+Gus: raises 400 to 800
+Bea: folds
+Caro: calls 800
+Dan: folds
+Eli: folds
+Fon: folds
+*** FLOP *** [Ks 8d 3c]
+Gus: bets 1200
+Caro: calls 1200
+*** TURN *** [Ks 8d 3c] [2h]
+Gus: bets 2500
+Caro: folds
+Uncalled bet (2500) returned to Gus
+Gus collected 4900 from pot
+*** SUMMARY ***
+Total pot 4900 | Rake 0
+Board [Ks 8d 3c 2h]
+Seat 1: Bea folded before Flop (didn't bet)
+Seat 2: Caro folded on the Turn
+Seat 3: Dan (button) folded before Flop (didn't bet)
+Seat 4: Eli (small blind) folded before Flop
+Seat 5: Fon (big blind) folded before Flop
+Seat 6: Gus collected (4900)

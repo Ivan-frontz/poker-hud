@@ -1,0 +1,52 @@
+PokerStars Hand #500100001: Tournament #112233445, $10+$1 USD Hold'em No Limit - Level II (25/50) - 2024/02/01 19:00:00 ET
+Table '112233445 1' 9-max Seat #5 is the button
+Seat 1: Nico (3000 in chips)
+Seat 2: Olga (1500 in chips)
+Seat 3: Pau (4200 in chips)
+Seat 4: Rita (2980 in chips)
+Seat 5: Sam (3000 in chips)
+Seat 6: Tere (1000 in chips)
+Seat 7: Uxio (2500 in chips)
+Seat 8: Vera (3300 in chips)
+Seat 9: Willy (2000 in chips)
+Tere: posts small blind 25
+Uxio: posts big blind 50
+*** HOLE CARDS ***
+Dealt to Vera [Ah Qh]
+Vera: calls 50
+Willy: calls 50
+Nico: folds
+Olga: calls 50
+Pau: folds
+Rita: folds
+Sam: folds
+Tere: calls 25
+Uxio: checks
+*** FLOP *** [9c 4d 2s]
+Tere: checks
+Uxio: checks
+Vera: bets 100
+Willy: folds
+Olga: calls 100
+Tere: folds
+Uxio: folds
+*** TURN *** [9c 4d 2s] [Kd]
+Vera: checks
+Olga: checks
+*** RIVER *** [9c 4d 2s Kd] [7h]
+Vera: bets 150
+Olga: folds
+Uncalled bet (150) returned to Vera
+Vera collected 450 from pot
+*** SUMMARY ***
+Total pot 450 | Rake 0
+Board [9c 4d 2s Kd 7h]
+Seat 1: Nico folded before Flop (didn't bet)
+Seat 2: Olga folded on the River
+Seat 3: Pau folded before Flop (didn't bet)
+Seat 4: Rita folded before Flop (didn't bet)
+Seat 5: Sam (button) folded before Flop (didn't bet)
+Seat 6: Tere (small blind) folded on the Flop
+Seat 7: Uxio (big blind) folded on the Flop
+Seat 8: Vera collected (450)
+Seat 9: Willy folded on the Flop

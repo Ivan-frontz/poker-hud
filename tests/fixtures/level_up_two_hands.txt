@@ -1,0 +1,83 @@
+PokerStars Hand #500200001: Tournament #223344556, $20+$2 USD Hold'em No Limit - Level V (75/150) - 2024/02/02 09:00:00 ET
+Table '223344556 7' 6-max Seat #1 is the button
+Seat 1: Ka (3000 in chips)
+Seat 2: La (3000 in chips)
+Seat 3: Ma (3000 in chips)
+Seat 4: Na (3000 in chips)
+Seat 5: Oa (3000 in chips)
+Seat 6: Pa (3000 in chips)
+La: posts small blind 75
+Ma: posts big blind 150
+*** HOLE CARDS ***
+Dealt to Ka [Kd Qd]
+Na: folds
+Oa: folds
+Pa: folds
+Ka: calls 150
+La: folds
+Ma: checks
+*** FLOP *** [8h 5d 2c]
+Ma: checks
+Ka: checks
+*** TURN *** [8h 5d 2c] [Jd]
+Ma: checks
+Ka: checks
+*** RIVER *** [8h 5d 2c Jd] [3s]
+Ma: checks
+Ka: checks
+*** SHOW DOWN ***
+Ma: shows [Ah Th] (high card Ace)
+Ka: shows [Kd Qd] (high card King)
+Ma collected 375 from pot
+*** SUMMARY ***
+Total pot 375 | Rake 0
+Board [8h 5d 2c Jd 3s]
+Seat 1: Ka (button) showed [Kd Qd] and lost with high card King
+Seat 2: La (small blind) folded before Flop
+Seat 3: Ma (big blind) showed [Ah Th] and won (375) with high card Ace
+Seat 4: Na folded before Flop (didn't bet)
+Seat 5: Oa folded before Flop (didn't bet)
+Seat 6: Pa folded before Flop (didn't bet)
+
+PokerStars Hand #500200002: Tournament #223344556, $20+$2 USD Hold'em No Limit - Level VI (100/200) - 2024/02/02 09:12:00 ET
+Table '223344556 7' 6-max Seat #2 is the button
+Seat 1: Ka (2850 in chips)
+Seat 2: La (2925 in chips)
+Seat 3: Ma (3225 in chips)
+Seat 4: Na (3000 in chips)
+Seat 5: Oa (3000 in chips)
+Seat 6: Pa (3000 in chips)
+Ka: posts the ante 25
+La: posts the ante 25
+Ma: posts the ante 25
+Na: posts the ante 25
+Oa: posts the ante 25
+Pa: posts the ante 25
+Ma: posts small blind 100
+Na: posts big blind 200
+*** HOLE CARDS ***
+Dealt to Ka [Jc Jh]
+Oa: folds
+Pa: folds
+Ka: folds
+La: calls 200
+Ma: folds
+Na: checks
+*** FLOP *** [Qc 9h 4s]
+Na: checks
+La: checks
+*** TURN *** [Qc 9h 4s] [6d]
+Na: checks
+La: bets 200
+Na: folds
+Uncalled bet (200) returned to La
+La collected 650 from pot
+*** SUMMARY ***
+Total pot 650 | Rake 0
+Board [Qc 9h 4s 6d]
+Seat 1: Ka folded before Flop (didn't bet)
+Seat 2: La (button) collected (650)
+Seat 3: Ma (small blind) folded before Flop
+Seat 4: Na (big blind) folded on the Turn
+Seat 5: Oa folded before Flop (didn't bet)
+Seat 6: Pa folded before Flop (didn't bet)

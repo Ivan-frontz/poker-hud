@@ -1,0 +1,42 @@
+PokerStars Hand #500100004: Tournament #112233445, $10+$1 USD Hold'em No Limit - Level IX (300/600) - 2024/02/01 21:30:00 ET
+Table '112233445 4' 6-max Seat #2 is the button
+Seat 1: Rex (1800 in chips)
+Seat 2: Sol (9000 in chips)
+Seat 3: Tim (6200 in chips)
+Seat 4: Uma (4100 in chips)
+Seat 5: Vik (7300 in chips)
+Seat 6: Wen (5000 in chips)
+Rex: posts the ante 75
+Sol: posts the ante 75
+Tim: posts the ante 75
+Uma: posts the ante 75
+Vik: posts the ante 75
+Wen: posts the ante 75
+Tim: posts small blind 300
+Uma: posts big blind 600
+*** HOLE CARDS ***
+Dealt to Uma [Kd Kh]
+Vik: folds
+Wen: folds
+Rex: raises 1125 to 1725 and is all-in
+Sol: folds
+Tim: folds
+Uma: calls 1125
+*** FLOP *** [Th 6c 2d]
+*** TURN *** [Th 6c 2d] [9s]
+*** RIVER *** [Th 6c 2d 9s] [4h]
+*** SHOW DOWN ***
+Uma: shows [Kd Kh] (a pair of Kings)
+Rex: shows [Qc Qs] (a pair of Queens)
+Uma collected 4200 from pot
+*** SUMMARY ***
+Total pot 4200 | Rake 0
+Board [Th 6c 2d 9s 4h]
+Seat 1: Rex showed [Qc Qs] and lost with a pair of Queens
+Seat 2: Sol (button) folded before Flop (didn't bet)
+Seat 3: Tim (small blind) folded before Flop
+Seat 4: Uma (big blind) showed [Kd Kh] and won (4200) with a pair of Kings
+Seat 5: Vik folded before Flop (didn't bet)
+Seat 6: Wen folded before Flop (didn't bet)
+
+Rex finished the tournament in 6th place and received $0.00.

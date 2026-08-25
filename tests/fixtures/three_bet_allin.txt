@@ -1,0 +1,59 @@
+PokerStars Hand #500100003: Tournament #112233445, $10+$1 USD Hold'em No Limit - Level VI (150/300) - 2024/02/01 20:45:00 ET
+Table '112233445 3' 9-max Seat #7 is the button
+Seat 1: Iva (5200 in chips)
+Seat 2: Jon (9000 in chips)
+Seat 3: Kim (6100 in chips)
+Seat 4: Leo (3900 in chips)
+Seat 5: Mia (7000 in chips)
+Seat 6: Nao (2600 in chips)
+Seat 7: Ova (9000 in chips)
+Seat 8: Pia (4400 in chips)
+Seat 9: Quim (3100 in chips)
+Iva: posts the ante 25
+Jon: posts the ante 25
+Kim: posts the ante 25
+Leo: posts the ante 25
+Mia: posts the ante 25
+Nao: posts the ante 25
+Ova: posts the ante 25
+Pia: posts the ante 25
+Quim: posts the ante 25
+Pia: posts small blind 150
+Quim: posts big blind 300
+*** HOLE CARDS ***
+Dealt to Jon [As Ac]
+Iva: folds
+Jon: raises 300 to 600
+Kim: folds
+Leo: folds
+Mia: folds
+Nao: folds
+Ova: raises 900 to 1500
+Pia: folds
+Quim: folds
+Jon: calls 900
+*** FLOP *** [Qh 9s 5d]
+Jon: checks
+Ova: bets 2000
+Jon: calls 2000
+*** TURN *** [Qh 9s 5d] [Ad]
+Jon: checks
+Ova: bets 5475 and is all-in
+Jon: calls 5475 and is all-in
+*** RIVER *** [Qh 9s 5d Ad] [3c]
+*** SHOW DOWN ***
+Ova: shows [Kc Kd] (a pair of Kings)
+Jon: shows [As Ac] (three of a kind, Aces)
+Jon collected 18625 from pot
+*** SUMMARY ***
+Total pot 18625 | Rake 0
+Board [Qh 9s 5d Ad 3c]
+Seat 1: Iva folded before Flop (didn't bet)
+Seat 2: Jon showed [As Ac] and won (18625) with three of a kind, Aces
+Seat 3: Kim folded before Flop (didn't bet)
+Seat 4: Leo folded before Flop (didn't bet)
+Seat 5: Mia folded before Flop (didn't bet)
+Seat 6: Nao folded before Flop (didn't bet)
+Seat 7: Ova (button) showed [Kc Kd] and lost with a pair of Kings
+Seat 8: Pia (small blind) folded before Flop
+Seat 9: Quim (big blind) folded before Flop
