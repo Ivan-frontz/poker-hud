@@ -1,0 +1,17 @@
+PokerStars Hand #500100006: Tournament #112233445, $10+$1 USD Hold'em No Limit - Level I (10/20) - 2024/02/01 18:55:00 ET
+Table '112233445 6' 9-max Seat #1 is the button
+Seat 1: Az (3000 in chips)
+Seat 2: Bz (3000 in chips)
+Seat 3: Cz (3000 in chips)
+Seat 4: Dz (3000 in chips)
+Seat 5: Ez (3000 in chips)
+Seat 6: Fz (3000 in chips)
+Seat 7: Gz (3000 in chips)
+Seat 8: Hz (3000 in chips)
+Seat 9: Iz (3000 in chips)
+Bz: posts small blind 10
+Cz: posts big blind 20
+*** HOLE CARDS ***
+Dealt to Az [As Kc]
+Dz: folds
+This hand was cancelled and will be refunded.

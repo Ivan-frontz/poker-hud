@@ -1,0 +1,27 @@
+PokerStars Hand #500100005: Tournament #112233445, $10+$1 USD Hold'em No Limit - Level III (75/150) - 2024/02/01 19:40:00 ET
+Table '112233445 5' 6-max Seat #4 is the button
+Seat 1: Ax (3000 in chips)
+Seat 2: Bx (3000 in chips)
+Seat 3: Cx (3000 in chips)
+Seat 4: Dx (3000 in chips)
+Seat 5: Ex (3000 in chips)
+Seat 6: Fx (3000 in chips)
+Ex: posts small blind 75
+Fx: posts big blind 150
+*** HOLE CARDS ***
+Dealt to Ax [7d 2c]
+Ax: folds
+Bx: folds
+Cx: folds
+Dx: folds
+Ex: folds
+Uncalled bet (150) returned to Fx
+Fx collected 75 from pot
+*** SUMMARY ***
+Total pot 75 | Rake 0
+Seat 1: Ax folded before Flop (didn't bet)
+Seat 2: Bx folded before Flop (didn't bet)
+Seat 3: Cx folded before Flop (didn't bet)
+Seat 4: Dx (button) folded before Flop (didn't bet)
+Seat 5: Ex (small blind) folded before Flop
+Seat 6: Fx (big blind) collected (75)
