@@ -9,10 +9,14 @@ mesa.
 
 ## Alcance v1
 
-- Cash game, una mesa.
+- Torneos (no cash), una mesa.
 - Cliente PokerStars corriendo bajo Wine en Linux.
 - Stats básicas por asiento: manos, VPIP, PFR, 3-bet.
 - Sin popups ni multi-tabla todavía (fases posteriores).
+
+El hand history de torneo trae ciegas que suben por niveles, ante a partir de
+cierto nivel, importes de fichas sin símbolo de moneda y eliminaciones de
+jugadores — el parser lo tiene en cuenta.
 
 ## Componentes
 
