@@ -29,6 +29,9 @@ jugadores — el parser lo tiene en cuenta.
   SQLite.
 - `overlay`: detección de la ventana de mesa (vía `xdotool`/`wmctrl` sobre
   Wine) y renderizado de las cajas de stats por asiento (X11, click-through,
-  siempre-encima).
+  siempre-encima). El cálculo de dónde va cada caja y qué texto muestra
+  (`overlay.layout`, testeado) está separado del renderizado real con
+  Tkinter/X Shape (`overlay.hud`, requiere servidor X y no es testeable
+  por pytest).
 
 Proyecto gestionado vía [panel-tareas](https://github.com/Ivan-frontz/Panel_tareas_automatizado).
