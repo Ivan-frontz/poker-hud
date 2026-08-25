@@ -20,8 +20,11 @@ jugadores — el parser lo tiene en cuenta.
 
 ## Componentes
 
-- `parser`: vigila la carpeta de hand history y parsea cada mano a una
+- `parser`: parsea cada mano de un hand history de torneo a una
   representación estructurada.
+- `watcher`: vigila por polling la carpeta de hand history de torneos,
+  detecta manos nuevas y completas (y ficheros nuevos, uno por torneo) y
+  las envía al parser y al motor de stats.
 - `stats`: motor de cálculo incremental de stats por jugador, persistido en
   SQLite.
 - `overlay`: detección de la ventana de mesa (vía `xdotool`/`wmctrl` sobre
