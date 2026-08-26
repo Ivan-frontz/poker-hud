@@ -57,17 +57,16 @@ jugadores — el parser lo tiene en cuenta.
 - Python 3.10+.
 - Opcional: **`python-xlib`** (`pip install python-xlib`) para que las
   cajas del overlay sean *click-through* (los clicks les llegan a la mesa
-  de debajo en vez de quedarse en la caja) y para que **F9** (modo edición
-  de posición de las cajas, ver más abajo) funcione como atajo global de
-  verdad con la mesa de PokerStars enfocada. Sin ella el HUD funciona
-  igual, pero las cajas capturan el ratón y F9 sólo hace algo si el propio
-  HUD tiene el foco de teclado (no pasa jugando de verdad).
+  de debajo en vez de quedarse en la caja), salvo la manija de arrastre de
+  su esquina (ver "Ajustar la posición de las cajas a mano" más abajo).
+  Sin ella el HUD funciona igual, pero las cajas capturan el ratón
+  siempre.
 
 ### 2. Instalar el paquete
 
 ```bash
 pip install -e .
-# opcional, para click-through y para que F9 sea un atajo global de verdad:
+# opcional, para click-through:
 pip install python-xlib
 ```
 
@@ -136,15 +135,15 @@ La posición por defecto de cada caja la calcula el HUD geométricamente
 cada asiento en el fieltro de la mesa/tema visual concreto. Para
 corregirla:
 
-1. Con el HUD corriendo y las cajas visibles sobre la mesa, pulsa **F9**
-   para entrar en modo edición. Las cajas dejan de ser click-through (se
-   quedan capturando el ratón en vez de dejar pasar los clicks a la mesa
-   de debajo) y se marcan con un borde amarillo mientras este modo está
-   activo.
-2. Arrastra con el botón izquierdo del ratón cada caja a la posición que
-   prefieras.
-3. Pulsa **F9** de nuevo para salir del modo edición y devolver las cajas
-   a click-through normal.
+Con el HUD corriendo y las cajas visibles sobre la mesa, cada caja tiene
+una pequeña manija amarilla ("✛") fija en su esquina superior derecha.
+Arrastra esa manija con el botón izquierdo del ratón hasta la posición que
+prefieras y soltá — no hace falta ningún atajo de teclado ni modo previo.
+El resto de la caja sigue siendo click-through en todo momento (los
+clicks fuera de la manija le siguen llegando a la mesa de debajo, no
+interfieren con el juego). Sin `python-xlib` instalada no hay
+click-through que proteger, así que en ese caso se puede arrastrar desde
+cualquier punto de la caja, no sólo la manija.
 
 La posición de cada asiento se guarda automáticamente al soltar el
 arrastre, en `seat_positions.json` junto al fichero de stats (mismo
@@ -152,9 +151,8 @@ directorio que `--db-path`, por defecto
 `~/.local/share/poker-hud/seat_positions.json`) — no hace falta guardar
 nada más ni hay un paso explícito de "guardar". Un asiento que nunca se
 ajustó a mano sigue usando la posición calculada automáticamente, y eso
-no cambia al reiniciar el HUD. Mientras el modo edición está activo, el
-HUD deja de refrescar la posición/stats de las cajas (se congela) hasta
-que se sale de él, para no pelearle la caja al ratón a mitad de un
-arrastre.
+no cambia al reiniciar el HUD. Mientras se está arrastrando una caja, el
+HUD deja de refrescar su posición/stats (se congela) hasta soltarla, para
+no pelearle la caja al ratón a mitad de un arrastre.
 
 Proyecto gestionado vía [panel-tareas](https://github.com/Ivan-frontz/Panel_tareas_automatizado).
