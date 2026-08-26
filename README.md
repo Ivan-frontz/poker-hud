@@ -57,14 +57,17 @@ jugadores — el parser lo tiene en cuenta.
 - Python 3.10+.
 - Opcional: **`python-xlib`** (`pip install python-xlib`) para que las
   cajas del overlay sean *click-through* (los clicks les llegan a la mesa
-  de debajo en vez de quedarse en la caja). Sin ella el HUD funciona
-  igual, pero las cajas capturan el ratón.
+  de debajo en vez de quedarse en la caja) y para que **F9** (modo edición
+  de posición de las cajas, ver más abajo) funcione como atajo global de
+  verdad con la mesa de PokerStars enfocada. Sin ella el HUD funciona
+  igual, pero las cajas capturan el ratón y F9 sólo hace algo si el propio
+  HUD tiene el foco de teclado (no pasa jugando de verdad).
 
 ### 2. Instalar el paquete
 
 ```bash
 pip install -e .
-# opcional, para click-through:
+# opcional, para click-through y para que F9 sea un atajo global de verdad:
 pip install python-xlib
 ```
 
