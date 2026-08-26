@@ -6,9 +6,14 @@ una mesa a la vez, ver "HUD multi-mesa" más abajo), una ventanita Tk
 
 - sin bordes ni decoración (``overrideredirect``),
 - siempre-encima de la ventana de PokerStars (``wm_attributes('-topmost', ...)``),
-- semitransparente (``wm_attributes('-alpha', ...)``, requiere un gestor de
-  ventanas con compositor; sin compositor la ventana se ve opaca pero
-  sigue funcionando),
+- semitransparente: requiere un gestor de ventanas con compositor activo
+  (sin él la ventana se ve opaca pero sigue funcionando). T20 confiaba
+  sólo en ``wm_attributes('-alpha', ...)`` de Tk para esto; T25 encontró
+  -verificado contra una ventana real, no sólo asumido- que esa llamada
+  puede no hacer nada aunque no falle, así que además fuerza la propiedad
+  X11 ``_NET_WM_WINDOW_OPACITY`` a mano vía ``python-xlib``
+  (:meth:`SeatBoxWindow._apply_real_opacity`) cuando está disponible,
+  sin la cual la ventana también se queda opaca,
 - click-through cuando hay soporte de la extensión X Shape vía
   ``python-xlib`` instalado (los clicks del ratón atraviesan la caja y le
   llegan a la mesa que hay debajo, para no interferir con el juego),
@@ -111,6 +116,22 @@ debajo (no al overlay) — importante probarlo con la mesa de PokerStars
 enfocada, no el HUD, para que sea un caso realista de uso mientras se
 juega.
 
+Verificación de la transparencia en concreto (T20/T25): a diferencia del
+resto de este módulo, esto sí se puede verificar sin depender sólo de
+"a ojo" ni de que Tk no lance ``tk.TclError`` -T20 se dio por bueno así,
+y no bastó, ver :meth:`SeatBoxWindow._apply_real_opacity`-: con el HUD
+corriendo, tomar el id de ventana de una caja (p.ej. con ``wmctrl -l`` o
+la salida de ``winfo_id()`` si se instrumenta) y correr
+``xprop -id <id> _NET_WM_WINDOW_OPACITY``; debe aparecer la propiedad con
+un valor menor al máximo ``0xffffffff`` (no "not found"). Que la
+propiedad esté escrita en la ventana real -confirmado igual con ``xprop``
+que con una relectura por Xlib- es lo que el compositor necesita para
+aplicar la opacidad; complementarlo con comprobar a ojo (o con una
+captura de pantalla real, no un grab X11 crudo por ``XGetImage`` sobre el
+root, que bajo un compositor con Wayland/XWayland de por medio no
+refleja el buffer compuesto) que la caja efectivamente se ve semi-
+transparente sobre la mesa.
+
 Verificación manual específica de T23 (multi-mesa), también no
 automatizable: con dos torneos reales distintos abiertos a la vez (no
 hace falta que estén en el mismo estado de mano, basta con que ambas
@@ -208,9 +229,12 @@ class SeatBoxWindow:
     (geometría, offsets guardados) resolver el arrastre cuando hay más de
     una a la vez, en vez de asumir que el asiento por sí solo identifica
     la caja de forma única-.
-    ``opacity`` (T20) es el valor de ``-alpha`` de la ventana (0.0
-    totalmente transparente, 1.0 opaca); lo decide en última instancia
-    :class:`HudController` a partir del flag ``--opacity`` de la CLI.
+    ``opacity`` (T20) es la opacidad deseada de la ventana (0.0 totalmente
+    transparente, 1.0 opaca); lo decide en última instancia
+    :class:`HudController` a partir del flag ``--opacity`` de la CLI. Se
+    aplica tanto vía ``-alpha`` de Tk como -de verdad, ver T25 en el
+    docstring del módulo- escribiendo ``_NET_WM_WINDOW_OPACITY`` a mano
+    (:meth:`_apply_real_opacity`).
     """
 
     def __init__(
@@ -239,10 +263,13 @@ class SeatBoxWindow:
             pass
         self._top.configure(bg=_BACKGROUND)
 
+        # T25: 8pt (antes 9) para que las 3 líneas de stats entren cómodas
+        # en la caja más chica que pidió Ivan probando en vivo (ver
+        # DEFAULT_BOX_WIDTH/HEIGHT en overlay/layout.py).
         self._text = tk.Text(
             self._top,
             bg=_BACKGROUND,
-            font=("Sans", 9),
+            font=("Sans", 8),
             wrap="none",
             borderwidth=0,
             highlightthickness=0,
@@ -276,6 +303,8 @@ class SeatBoxWindow:
         self._xlib_window = None
         self._xlib_shape = None
         self._click_through_supported = False
+        self._init_xlib_window()
+        self._apply_real_opacity(opacity)
         self._init_click_through()
         if not self._click_through_supported:
             # Sin click-through no hay nada que la manija proteja: la caja
@@ -296,21 +325,22 @@ class SeatBoxWindow:
             self._known_tags.add(tag)
         return tag
 
-    def _init_click_through(self) -> None:
-        """Prepara la conexión X11 propia para poder fijar la región de input (T19).
+    def _init_xlib_window(self) -> None:
+        """Abre la conexión X11 propia (python-xlib) a esta ventana, si está disponible.
 
-        Requiere ``python-xlib`` (dependencia opcional, no listada en
-        ``pyproject.toml`` porque el resto del proyecto no la necesita).
-        Si no está instalada, o el servidor X no soporta la extensión
-        Shape, ``self._click_through_supported`` se queda en ``False`` y la
-        caja se queda visible pero capturando el ratón siempre: se
-        documenta como limitación conocida en vez de fallar (ver
-        docstring del módulo).
+        Antes de T25 esta conexión sólo la abría ``_init_click_through``
+        (T19); T25 la adelanta y comparte porque ahora también hace falta
+        para forzar la opacidad real (ver :meth:`_apply_real_opacity`), no
+        sólo para click-through. Requiere ``python-xlib`` (dependencia
+        opcional, no listada en ``pyproject.toml`` porque el resto del
+        proyecto no la necesita); sin ella ``self._xlib_display``/
+        ``self._xlib_window`` se quedan en ``None`` y tanto la opacidad real
+        como el click-through quedan deshabilitados (ver docstring del
+        módulo).
         """
 
         try:
             from Xlib.display import Display
-            from Xlib.ext import shape
         except ImportError:
             return
 
@@ -322,12 +352,85 @@ class SeatBoxWindow:
             self._top.update_idletasks()
             display = Display()
             window_id = self._top.winfo_id()
-            xlib_window = display.create_resource_object("window", window_id)
-            if not display.has_extension("SHAPE"):
-                return
-            xlib_window.shape_select_input(0)
             self._xlib_display = display
-            self._xlib_window = xlib_window
+            self._xlib_window = display.create_resource_object("window", window_id)
+        except Exception:
+            self._xlib_display = None
+            self._xlib_window = None
+
+    def _apply_real_opacity(self, opacity: float) -> None:
+        """Fuerza la opacidad real de la ventana escribiendo ``_NET_WM_WINDOW_OPACITY`` (T25).
+
+        T20 dejó la transparencia sólo en manos de ``wm_attributes('-alpha',
+        ...)`` de Tk, dando por buena la falta de ``tk.TclError`` como señal
+        de que había funcionado. Verificado esta noche contra una ventana
+        real creada por este mismo código en la máquina de Ivan (Tk 8.6.14
+        sobre GNOME/Mutter vía XWayland): esa llamada NO lanza error, pero
+        tampoco escribe ninguna propiedad ``_NET_WM_WINDOW_OPACITY`` en la
+        ventana -confirmado con ``xprop -id <id>`` mostrando cero
+        propiedades tras crearla-, así que Mutter no tiene de dónde leer
+        una opacidad real y la caja queda opaca. No es un problema de
+        ``overrideredirect``/``-topmost`` en sí ni del visual de la
+        ventana (24-bit TrueColor, sin ARGB32): forzar esa misma propiedad
+        a mano con python-xlib sobre una ventana idéntica sí quedó escrita
+        y persistió (releída tanto con ``xprop`` como con Xlib), que es la
+        convención estándar que Mutter -y los demás compositores
+        freedesktop.org- usan para la opacidad de ventana completa; no
+        hace falta un visual con canal alfa para eso, que sólo aplica a
+        transparencia por-píxel dentro del contenido.
+
+        Se llama una sola vez, en :meth:`__init__` tras conocerse el id de
+        ventana X (:meth:`_init_xlib_window`): a diferencia de la región de
+        input de X Shape (que sí cambia con el ancho de la caja, ver
+        :meth:`_update_input_region`), la opacidad no depende de la
+        geometría y no hace falta refrescarla en cada :meth:`update`.
+        Además de esto, se deja la llamada a ``-alpha`` de Tk en
+        ``__init__`` tal cual estaba: no molesta, y en una instalación de
+        Tk donde sí funcione sería redundante pero no dañina. Sin
+        ``python-xlib`` (``self._xlib_window`` en ``None``) no hay forma
+        alternativa de escribir la propiedad y la caja se queda opaca,
+        igual que si python-xlib no fuera necesaria para nada más en este
+        módulo.
+        """
+
+        if self._xlib_window is None:
+            return
+        try:
+            value = int(round(max(0.0, min(1.0, opacity)) * 0xFFFFFFFF))
+            opacity_atom = self._xlib_display.intern_atom("_NET_WM_WINDOW_OPACITY")
+            cardinal_atom = self._xlib_display.intern_atom("CARDINAL")
+            self._xlib_window.change_property(opacity_atom, cardinal_atom, 32, [value])
+            self._xlib_display.sync()
+        except Exception:
+            # No-fatal (mismo criterio que el resto de este módulo con
+            # X11): peor caso, la caja se queda opaca pero sigue mostrando
+            # las stats.
+            pass
+
+    def _init_click_through(self) -> None:
+        """Fija la región de input de X Shape para hacer la caja click-through (T19).
+
+        Reutiliza la conexión abierta por :meth:`_init_xlib_window`; si esa
+        conexión no se pudo abrir (sin ``python-xlib``, o falló contra el
+        servidor X) o el servidor no soporta la extensión Shape,
+        ``self._click_through_supported`` se queda en ``False`` y la caja
+        se queda visible pero capturando el ratón siempre: se documenta
+        como limitación conocida en vez de fallar (ver docstring del
+        módulo).
+        """
+
+        if self._xlib_display is None or self._xlib_window is None:
+            return
+
+        try:
+            from Xlib.ext import shape
+        except ImportError:
+            return
+
+        try:
+            if not self._xlib_display.has_extension("SHAPE"):
+                return
+            self._xlib_window.shape_select_input(0)
             self._xlib_shape = shape
             self._click_through_supported = True
         except Exception:

@@ -53,9 +53,13 @@ __all__ = [
 # Tamaño por defecto de cada caja, en píxeles. Lo bastante pequeño para no
 # tapar las cartas/fichas de la mesa, lo bastante grande para leer las 6
 # stats repartidas en 3 líneas (nombre, manos+vio flop+VPIP+PFR+3-bet, fold
-# a 3-bet; T13 añadió la tercera línea y T15 reordenó la segunda).
-DEFAULT_BOX_WIDTH = 150
-DEFAULT_BOX_HEIGHT = 60
+# a 3-bet; T13 añadió la tercera línea y T15 reordenó la segunda). T25 bajó
+# ambos valores a pedido de Ivan probando en vivo ("la caja tapa de más");
+# el texto ahora entra igual con margen porque T25 también quitó el "%" de
+# cada stat (menos caracteres por línea, ver ``_fmt_pct``) y bajó el tamaño
+# de fuente de la caja (``SeatBoxWindow`` en overlay/hud.py).
+DEFAULT_BOX_WIDTH = 120
+DEFAULT_BOX_HEIGHT = 48
 
 # Opacidad por defecto de las cajas (T20; bajada desde 0.80, que tapaba
 # demasiado la mesa de detrás). Vive aquí -no en overlay.hud, que ya importa
@@ -264,7 +268,11 @@ def format_stats_line(screen_name: str | None, stats: "PlayerStats | None") -> l
         ]
 
     def _fmt_pct(pct: float | None) -> str:
-        return "-" if pct is None else f"{pct:.0f}%"
+        # T25: sin el símbolo "%" a pedido de Ivan (la caja ya deja claro
+        # por contexto/color que son porcentajes; el símbolo sólo ocupaba
+        # espacio en una caja ya angosta). El nº de manos (``{n}m``, más
+        # abajo) no pasa por acá y no le aplica este cambio.
+        return "-" if pct is None else f"{pct:.0f}"
 
     return [
         StatSegment(f"{screen_name}\n", COLOR_NAME),
