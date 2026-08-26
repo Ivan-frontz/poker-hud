@@ -11,8 +11,9 @@ def _player(seat: int, name: str, *, sitting_out: bool = False) -> Player:
 
 
 class _FakeHand:
-    def __init__(self, players: list[Player]) -> None:
+    def __init__(self, players: list[Player], max_seats: int = 9) -> None:
         self.players = players
+        self.max_seats = max_seats
 
 
 def test_arg_parser_requires_hand_history_dir():
@@ -69,3 +70,22 @@ def test_shared_table_state_replaces_seats_on_next_hand():
     state.on_hand(_FakeHand([_player(2, "Ova")]))
 
     assert state.get_current_players() == {2: "Ova"}
+
+
+def test_shared_table_state_starts_without_a_known_max_seats():
+    state = SharedTableState()
+    assert state.get_max_seats() == 0
+
+
+def test_shared_table_state_tracks_max_seats_of_last_hand():
+    # T11: max_seats viaja aparte de seat_players porque no se puede
+    # inferir de forma fiable a partir de los números de asiento ocupados
+    # (una mesa de 9-max con jugadores sólo en asientos bajos parecería de
+    # menos asientos si se calculara así).
+    state = SharedTableState()
+    hand = _FakeHand([_player(1, "Jon"), _player(2, "Ova"), _player(3, "Ren")], max_seats=9)
+
+    state.on_hand(hand)
+
+    assert state.get_current_players() == {1: "Jon", 2: "Ova", 3: "Ren"}
+    assert state.get_max_seats() == 9

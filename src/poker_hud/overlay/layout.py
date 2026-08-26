@@ -31,17 +31,23 @@ if TYPE_CHECKING:
 __all__ = [
     "DEFAULT_BOX_WIDTH",
     "DEFAULT_BOX_HEIGHT",
+    "DEFAULT_MAX_SEATS",
     "SeatBox",
     "compute_seat_position",
     "compute_seat_positions",
     "format_stats_line",
     "build_seat_boxes",
+    "resolve_max_seats",
 ]
 
 # Tamaño por defecto de cada caja, en píxeles. Lo bastante pequeño para no
 # tapar las cartas/fichas de la mesa, lo bastante grande para leer 4 stats.
 DEFAULT_BOX_WIDTH = 150
 DEFAULT_BOX_HEIGHT = 46
+
+# Tamaño de mesa a asumir cuando todavía no se conoce el de la mesa real
+# (por ejemplo, el watcher aún no procesó ninguna mano completa).
+DEFAULT_MAX_SEATS = 9
 
 # Fracción del semieje de la mesa que ocupa el radio de la elipse sobre la
 # que se reparten los asientos. <1.0 para que las cajas queden dentro de la
@@ -155,6 +161,28 @@ def format_stats_line(screen_name: str | None, stats: "PlayerStats | None") -> s
         f"P{_fmt_pct(stats.pfr_pct)} "
         f"3B{_fmt_pct(stats.three_bet_pct)}"
     )
+
+
+def resolve_max_seats(max_seats: int | None, seat_players: dict[int, str]) -> int:
+    """Nº real de asientos de la mesa a dibujar (T11).
+
+    Usa el ``max_seats`` de la mano en curso (lo produce el parser en T1 a
+    partir de la línea ``Table '...' N-max``) siempre que se conozca. Si
+    todavía no llegó ninguna mano completa (``max_seats`` es ``None`` o
+    ``0``), cae a estimarlo a partir del asiento ocupado más alto, o a
+    :data:`DEFAULT_MAX_SEATS` si tampoco hay ningún jugador sentado todavía.
+
+    Antes de T11 se usaba siempre ``max(seat_players)``: como
+    ``seat_players`` es un ``dict`` asiento -> nombre, eso itera las CLAVES
+    y devuelve el nº de asiento más alto *ocupado*, no la cantidad de
+    asientos de la mesa. En una mesa de 9-max con jugadores sólo en
+    asientos bajos (watcher con retraso, o eliminaciones recientes) se
+    perdían asientos reales de la mesa.
+    """
+
+    if max_seats:
+        return max_seats
+    return max(seat_players, default=0) or DEFAULT_MAX_SEATS
 
 
 def build_seat_boxes(

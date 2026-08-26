@@ -4,11 +4,13 @@ from poker_hud.overlay import WindowGeometry
 from poker_hud.overlay.layout import (
     DEFAULT_BOX_HEIGHT,
     DEFAULT_BOX_WIDTH,
+    DEFAULT_MAX_SEATS,
     SeatBox,
     build_seat_boxes,
     compute_seat_position,
     compute_seat_positions,
     format_stats_line,
+    resolve_max_seats,
 )
 from poker_hud.stats import PlayerStats
 
@@ -158,6 +160,43 @@ def test_build_seat_boxes_never_calls_get_stats_for_empty_seats():
     build_seat_boxes(TABLE, max_seats=9, seat_players={1: "Hero"}, get_stats=get_stats)
 
     assert calls == ["Hero"]
+
+
+def test_resolve_max_seats_prefers_the_real_table_size():
+    # Caso real de T11: mesa de 9-max, pero en el momento del refresco el
+    # watcher sólo vio jugadores en asientos bajos (1-4). Antes de T11 se
+    # usaba max(seat_players) == 4, perdiendo 5 asientos reales de la mesa.
+    seat_players = {1: "Hero", 2: "Villain1", 3: "Villain2", 4: "Villain3"}
+    assert resolve_max_seats(9, seat_players) == 9
+
+
+def test_resolve_max_seats_falls_back_to_highest_occupied_seat_without_real_size():
+    seat_players = {1: "Hero", 4: "Villain"}
+    assert resolve_max_seats(0, seat_players) == 4
+    assert resolve_max_seats(None, seat_players) == 4
+
+
+def test_resolve_max_seats_falls_back_to_default_without_real_size_or_players():
+    assert resolve_max_seats(0, {}) == DEFAULT_MAX_SEATS
+    assert resolve_max_seats(None, {}) == DEFAULT_MAX_SEATS
+
+
+def test_build_seat_boxes_builds_every_seat_of_a_9max_table_with_few_players_seated():
+    # Reproduce el bug real de esta noche (2026-08-26): mesa de 9-max con
+    # sólo 4 de los 9 asientos ocupados (y todos en números bajos). Con el
+    # max_seats real (T1) propagado hasta aquí, deben construirse las 9
+    # cajas igualmente, no sólo hasta el asiento ocupado más alto.
+    seat_players = {1: "Hero", 2: "Villain1", 3: "Villain2", 4: "Villain3"}
+
+    boxes = build_seat_boxes(
+        TABLE,
+        max_seats=resolve_max_seats(9, seat_players),
+        seat_players=seat_players,
+        get_stats=lambda name: None,
+    )
+
+    assert len(boxes) == 9
+    assert {b.seat for b in boxes} == set(range(1, 10))
 
 
 def test_build_seat_boxes_positions_match_compute_seat_positions():
