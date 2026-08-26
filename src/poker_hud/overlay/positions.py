@@ -6,7 +6,7 @@ geométrica (elipse sobre la geometría de la ventana de mesa) que no
 siempre coincide con dónde está el asiento de verdad en el fieltro de esa
 mesa/tema visual. Este módulo persiste, por asiento, el offset ``(dx, dy)``
 que el usuario dejó tras arrastrar la caja a mano (ver
-``SeatBoxWindow.set_edit_mode`` en :mod:`poker_hud.overlay.hud`), para que
+``SeatBoxWindow`` en :mod:`poker_hud.overlay.hud`), para que
 :func:`poker_hud.overlay.layout.resolve_seat_position` la use en el
 siguiente refresco en vez de volver a calcularla, incluso tras reiniciar
 el HUD.
