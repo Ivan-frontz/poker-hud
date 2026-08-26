@@ -11,9 +11,12 @@ def _player(seat: int, name: str, *, sitting_out: bool = False) -> Player:
 
 
 class _FakeHand:
-    def __init__(self, players: list[Player], max_seats: int = 9) -> None:
+    def __init__(
+        self, players: list[Player], max_seats: int = 9, tournament_id: str = "111"
+    ) -> None:
         self.players = players
         self.max_seats = max_seats
+        self.tournament_id = tournament_id
 
 
 def test_arg_parser_requires_hand_history_dir():
@@ -53,39 +56,41 @@ def test_main_reports_missing_hand_history_dir(tmp_path, capsys):
 
 def test_shared_table_state_starts_empty():
     state = SharedTableState()
-    assert state.get_current_players() == {}
+    assert state.get_current_players("111") == {}
 
 
 def test_shared_table_state_tracks_seats_of_last_hand():
     state = SharedTableState()
-    hand = _FakeHand([_player(1, "Jon"), _player(4, "Ova")])
+    hand = _FakeHand([_player(1, "Jon"), _player(4, "Ova")], tournament_id="111")
 
     state.on_hand(hand)
 
-    assert state.get_current_players() == {1: "Jon", 4: "Ova"}
+    assert state.get_current_players("111") == {1: "Jon", 4: "Ova"}
 
 
 def test_shared_table_state_excludes_sitting_out_players():
     state = SharedTableState()
-    hand = _FakeHand([_player(1, "Jon"), _player(2, "Ausente", sitting_out=True)])
+    hand = _FakeHand(
+        [_player(1, "Jon"), _player(2, "Ausente", sitting_out=True)], tournament_id="111"
+    )
 
     state.on_hand(hand)
 
-    assert state.get_current_players() == {1: "Jon"}
+    assert state.get_current_players("111") == {1: "Jon"}
 
 
 def test_shared_table_state_replaces_seats_on_next_hand():
     state = SharedTableState()
-    state.on_hand(_FakeHand([_player(1, "Jon")]))
+    state.on_hand(_FakeHand([_player(1, "Jon")], tournament_id="111"))
 
-    state.on_hand(_FakeHand([_player(2, "Ova")]))
+    state.on_hand(_FakeHand([_player(2, "Ova")], tournament_id="111"))
 
-    assert state.get_current_players() == {2: "Ova"}
+    assert state.get_current_players("111") == {2: "Ova"}
 
 
 def test_shared_table_state_starts_without_a_known_max_seats():
     state = SharedTableState()
-    assert state.get_max_seats() == 0
+    assert state.get_max_seats("111") == 0
 
 
 def test_shared_table_state_tracks_max_seats_of_last_hand():
@@ -94,9 +99,37 @@ def test_shared_table_state_tracks_max_seats_of_last_hand():
     # (una mesa de 9-max con jugadores sólo en asientos bajos parecería de
     # menos asientos si se calculara así).
     state = SharedTableState()
-    hand = _FakeHand([_player(1, "Jon"), _player(2, "Ova"), _player(3, "Ren")], max_seats=9)
+    hand = _FakeHand(
+        [_player(1, "Jon"), _player(2, "Ova"), _player(3, "Ren")],
+        max_seats=9,
+        tournament_id="111",
+    )
 
     state.on_hand(hand)
 
-    assert state.get_current_players() == {1: "Jon", 2: "Ova", 3: "Ren"}
-    assert state.get_max_seats() == 9
+    assert state.get_current_players("111") == {1: "Jon", 2: "Ova", 3: "Ren"}
+    assert state.get_max_seats("111") == 9
+
+
+def test_shared_table_state_keeps_tournaments_independent():
+    # T22: PokerStars.ES guarda las manos de todos los torneos simultáneos
+    # de un mismo nick en la misma carpeta, así que el watcher intercala
+    # manos de mesas distintas. El estado de una no debe pisar el de otra.
+    state = SharedTableState()
+
+    state.on_hand(_FakeHand([_player(1, "Jon")], max_seats=9, tournament_id="111"))
+    state.on_hand(_FakeHand([_player(3, "Ren"), _player(5, "Ova")], max_seats=6, tournament_id="222"))
+    state.on_hand(_FakeHand([_player(1, "Jon"), _player(2, "Ale")], max_seats=9, tournament_id="111"))
+
+    assert state.get_current_players("111") == {1: "Jon", 2: "Ale"}
+    assert state.get_max_seats("111") == 9
+    assert state.get_current_players("222") == {3: "Ren", 5: "Ova"}
+    assert state.get_max_seats("222") == 6
+
+
+def test_shared_table_state_unknown_tournament_defaults_empty():
+    state = SharedTableState()
+    state.on_hand(_FakeHand([_player(1, "Jon")], tournament_id="111"))
+
+    assert state.get_current_players("999") == {}
+    assert state.get_max_seats("999") == 0
