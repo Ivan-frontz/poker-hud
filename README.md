@@ -9,10 +9,11 @@ mesa.
 
 ## Alcance v1
 
-- Torneos (no cash), una mesa.
+- Torneos (no cash), multi-mesa: el overlay sigue todas las mesas de
+  torneo abiertas a la vez.
 - Cliente PokerStars corriendo bajo Wine en Linux.
 - Stats básicas por asiento: manos, VPIP, PFR, 3-bet.
-- Sin popups ni multi-tabla todavía (fases posteriores).
+- Sin popups todavía (fases posteriores).
 
 El hand history de torneo trae ciegas que suben por niveles, ante a partir de
 cierto nivel, importes de fichas sin símbolo de moneda y eliminaciones de
@@ -107,11 +108,13 @@ python -m poker_hud --hand-history-dir "/ruta/a/HandHistory/tu-nick/Torneos"
 ```
 
 Esto arranca en un único proceso el watcher de hand history (T3, sondea
-la carpeta y actualiza stats), y el overlay (T5, detecta la ventana de
+la carpeta y actualiza stats), y el overlay (T5, detecta las ventanas de
 mesa y dibuja las cajas de stats por asiento) — se queda corriendo hasta
 que se cierra con Ctrl+C. Al sentarte en una mesa de torneo, el overlay
 debería localizarla automáticamente y empezar a mostrar cajas por
-asiento en cuanto haya al menos una mano jugada de cada jugador.
+asiento en cuanto haya al menos una mano jugada de cada jugador. Si te
+anotás a más de un torneo a la vez, el overlay sigue todas las mesas
+abiertas simultáneamente, cada una con sus propias cajas.
 
 Argumentos opcionales:
 
@@ -119,14 +122,13 @@ Argumentos opcionales:
   sesiones (por defecto `~/.local/share/poker-hud/stats.db`).
 - `--poll-interval SEGUNDOS`: frecuencia de sondeo de la carpeta de hand
   history (por defecto 2.0).
-- `--tournament-id ID`: fija el HUD a la mesa de este torneo. El HUD es v1
-  de una sola mesa: sin este flag, sigue siempre la primera mesa de
-  PokerStars que detecta, y con más de un torneo abierto a la vez (p.ej.
-  te anotas a uno nuevo mientras juegas otro) el orden en que las detecta
-  puede cambiar entre sondeos, haciendo que las cajas salten de una mesa a
-  otra. Usa este flag para fijar manualmente cuál seguir en ese caso. Si el
-  ID no coincide con ninguna mesa abierta en ese momento, el HUD
-  simplemente no muestra cajas hasta que esa mesa aparezca.
+- `--tournament-id ID`: fija el HUD a la mesa de este único torneo,
+  ignorando cualquier otra mesa de PokerStars abierta a la vez. Sin este
+  flag (el caso normal), el overlay sigue **todas** las mesas de torneo
+  detectadas simultáneamente. Usa este flag sólo si querés excluir
+  mesas que no te interesan. Si el ID no coincide con ninguna mesa
+  abierta en ese momento, el HUD simplemente no muestra cajas hasta que
+  esa mesa aparezca.
 - `--opacity FLOAT`: opacidad de las cajas del HUD, de 0.0 (invisible) a
   1.0 (opaca), por defecto 0.32 (bastante transparente, para tapar lo
   menos posible la mesa de detrás sin dejar de leer las stats). Valores
@@ -157,8 +159,10 @@ directorio que `--db-path`, por defecto
 `~/.local/share/poker-hud/seat_positions.json`) — no hace falta guardar
 nada más ni hay un paso explícito de "guardar". Un asiento que nunca se
 ajustó a mano sigue usando la posición calculada automáticamente, y eso
-no cambia al reiniciar el HUD. Mientras se está arrastrando una caja, el
-HUD deja de refrescar su posición/stats (se congela) hasta soltarla, para
-no pelearle la caja al ratón a mitad de un arrastre.
+no cambia al reiniciar el HUD. Con varias mesas abiertas a la vez, la
+posición ajustada se guarda por mesa: arrastrar el asiento 3 de un
+torneo no afecta al asiento 3 de otro. Mientras se está arrastrando una
+caja, el HUD deja de refrescar hasta soltarla, para no pelearle la caja
+al ratón a mitad de un arrastre.
 
 Proyecto gestionado vía [panel-tareas](https://github.com/Ivan-frontz/Panel_tareas_automatizado).

@@ -26,6 +26,17 @@ está cubierto por tests (``tests/test_overlay_positions.py``), a
 diferencia del resto de lo interactivo de T16 que vive en
 :mod:`poker_hud.overlay.hud` (ver el docstring de ese módulo para el
 porqué no es testeable).
+
+T23 (HUD multi-mesa): con más de una mesa de torneo abierta a la vez, el
+mismo nº de asiento existe en cada una y el offset ajustado a mano en una
+no tiene por qué valer para la otra. Por eso ``tournament_id`` (opcional
+en ambas funciones) permite guardar/leer offsets con clave compuesta
+``"<tournament_id>:<seat>"`` en vez de sólo ``"<seat>"``. Sin
+``tournament_id`` (el valor por defecto) el comportamiento es exactamente
+el de antes de T23, clave por asiento a secas -las entradas con clave
+compuesta de otras mesas se ignoran en ese modo en vez de mezclarse-, así
+que un fichero de posiciones de antes de T23 se sigue leyendo igual con la
+v1 de una sola mesa.
 """
 
 from __future__ import annotations
@@ -36,7 +47,30 @@ from pathlib import Path
 __all__ = ["load_seat_positions", "save_seat_position"]
 
 
-def load_seat_positions(path: Path | str) -> dict[int, tuple[int, int]]:
+def _read_raw(path: Path) -> dict:
+    """Contenido crudo (sin parsear a offsets) del fichero, o ``{}`` si no hay o es inválido.
+
+    Separado de :func:`load_seat_positions` para que :func:`save_seat_position`
+    pueda escribir de vuelta conservando entradas que no entiende -por
+    ejemplo, offsets con clave compuesta de otra mesa (T23) cuando se llama
+    sin ``tournament_id``-, en vez de perderlas al re-serializar sólo lo que
+    supo parsear.
+    """
+
+    try:
+        raw = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def _key(seat: int, tournament_id: str | None) -> str:
+    return f"{tournament_id}:{seat}" if tournament_id is not None else str(seat)
+
+
+def load_seat_positions(
+    path: Path | str, tournament_id: str | None = None
+) -> dict[int, tuple[int, int]]:
     """Offsets ``(dx, dy)`` guardados por asiento, o ``{}`` si no hay fichero o está corrupto.
 
     Un fichero ausente (primer arranque, nadie ajustó nunca ninguna caja) o
@@ -44,18 +78,24 @@ def load_seat_positions(path: Path | str) -> dict[int, tuple[int, int]]:
     inválida) se trata igual que "sin posiciones guardadas" en vez de
     hacer fallar el arranque del HUD: cada asiento sin entrada válida cae
     en el cálculo automático de siempre.
+
+    Con ``tournament_id`` (T23), sólo se devuelven los offsets guardados
+    con esa clave compuesta (ver docstring del módulo); sin él, sólo los
+    guardados con clave de asiento a secas -las entradas de otra mesa no
+    parsean como ``int`` y se descartan igual que cualquier clave inválida-.
     """
 
-    try:
-        raw = json.loads(Path(path).read_text())
-    except (OSError, ValueError):
-        return {}
+    raw = _read_raw(Path(path))
 
-    if not isinstance(raw, dict):
-        return {}
-
+    prefix = f"{tournament_id}:" if tournament_id is not None else None
     positions: dict[int, tuple[int, int]] = {}
-    for seat_key, offset in raw.items():
+    for raw_key, offset in raw.items():
+        if prefix is not None:
+            if not isinstance(raw_key, str) or not raw_key.startswith(prefix):
+                continue
+            seat_key = raw_key[len(prefix) :]
+        else:
+            seat_key = raw_key
         try:
             seat = int(seat_key)
             dx, dy = offset
@@ -65,13 +105,21 @@ def load_seat_positions(path: Path | str) -> dict[int, tuple[int, int]]:
     return positions
 
 
-def save_seat_position(path: Path | str, seat: int, dx: int, dy: int) -> None:
-    """Guarda el offset de ``seat``, conservando el resto de asientos ya guardados."""
+def save_seat_position(
+    path: Path | str, seat: int, dx: int, dy: int, tournament_id: str | None = None
+) -> None:
+    """Guarda el offset de ``seat``, conservando el resto de entradas ya guardadas.
+
+    Con ``tournament_id`` (T23) se guarda bajo la clave compuesta de esa
+    mesa (ver docstring del módulo) sin tocar las entradas de otras mesas
+    ni las de asiento a secas; conserva todo lo demás vía :func:`_read_raw`
+    en vez de pasar por :func:`load_seat_positions`, que descartaría esas
+    otras entradas al no saber parsearlas con el ``tournament_id`` dado.
+    """
 
     path = Path(path)
-    positions = load_seat_positions(path)
-    positions[seat] = (dx, dy)
+    raw = _read_raw(path)
+    raw[_key(seat, tournament_id)] = [dx, dy]
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    serializable = {str(seat_number): list(offset) for seat_number, offset in positions.items()}
-    path.write_text(json.dumps(serializable, indent=2, sort_keys=True))
+    path.write_text(json.dumps(raw, indent=2, sort_keys=True))
