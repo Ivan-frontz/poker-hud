@@ -1,0 +1,106 @@
+﻿PokerStars Hand #261871593712: Tournament #4022790069, €0.90+€0.90+€0.20 EUR Hold'em No Limit - Level VI (75/150) - 2026/08/26 10:04:00 CET [2026/08/26 4:04:00 ET]
+Table '4022790069 4' 9-max Seat #1 is the button
+Seat 1: starsky744 (10925 in chips)
+Seat 2: wakamayo3 (20279 in chips)
+Seat 4: Laurent06010 (9332 in chips)
+Seat 5: poandcri (18729 in chips) is sitting out
+Seat 6: WannaBReg (9590 in chips)
+Seat 7: vtoroinarty (9215 in chips)
+Seat 8: txancete (9855 in chips)
+Seat 9: BURBUJA50 (19722 in chips)
+starsky744: posts the ante 20
+wakamayo3: posts the ante 20
+Laurent06010: posts the ante 20
+poandcri: posts the ante 20
+WannaBReg: posts the ante 20
+vtoroinarty: posts the ante 20
+txancete: posts the ante 20
+BURBUJA50: posts the ante 20
+wakamayo3: posts small blind 75
+Laurent06010: posts big blind 150
+*** HOLE CARDS ***
+Dealt to wakamayo3 [6h Td]
+poandcri: folds
+WannaBReg: folds
+poandcri has returned
+vtoroinarty: folds
+txancete: folds
+BURBUJA50: raises 300 to 450
+starsky744: calls 450
+wakamayo3: folds
+Laurent06010: calls 300
+*** FLOP *** [7h Kh Jd]
+Laurent06010: bets 1585
+BURBUJA50: folds
+starsky744: calls 1585
+*** TURN *** [7h Kh Jd] [7d]
+Laurent06010: bets 4755
+starsky744: folds
+Uncalled bet (4755) returned to Laurent06010
+Laurent06010 collected 4755 from pot
+*** SUMMARY ***
+Total pot 4755 | Rake 0
+Board [7h Kh Jd 7d]
+Seat 1: starsky744 (button) folded on the Turn
+Seat 2: wakamayo3 (small blind) folded before Flop
+Seat 4: Laurent06010 (big blind) collected (4755)
+Seat 5: poandcri folded before Flop (didn't bet)
+Seat 6: WannaBReg folded before Flop (didn't bet)
+Seat 7: vtoroinarty folded before Flop (didn't bet)
+Seat 8: txancete folded before Flop (didn't bet)
+Seat 9: BURBUJA50 folded on the Flop
+
+
+PokerStars Hand #261871596476: Tournament #4022790069, €0.90+€0.90+€0.20 EUR Hold'em No Limit - Level VI (75/150) - 2026/08/26 10:04:49 CET [2026/08/26 4:04:49 ET]
+Table '4022790069 4' 9-max Seat #2 is the button
+Seat 1: starsky744 (8870 in chips)
+Seat 2: wakamayo3 (20184 in chips)
+Seat 4: Laurent06010 (12032 in chips)
+Seat 5: poandcri (18709 in chips)
+Seat 6: WannaBReg (9570 in chips)
+Seat 7: vtoroinarty (9195 in chips)
+Seat 8: txancete (9835 in chips)
+Seat 9: BURBUJA50 (19252 in chips)
+starsky744: posts the ante 20
+wakamayo3: posts the ante 20
+Laurent06010: posts the ante 20
+poandcri: posts the ante 20
+WannaBReg: posts the ante 20
+vtoroinarty: posts the ante 20
+txancete: posts the ante 20
+BURBUJA50: posts the ante 20
+Laurent06010: posts small blind 75
+poandcri: posts big blind 150
+*** HOLE CARDS ***
+Dealt to wakamayo3 [Ks Tc]
+WannaBReg: folds
+vtoroinarty: folds
+txancete: folds
+BURBUJA50: folds
+starsky744: calls 150
+wakamayo3: calls 150
+Laurent06010: folds
+poandcri: checks
+*** FLOP *** [Th 6s 2s]
+poandcri has timed out
+poandcri: checks
+starsky744: checks
+wakamayo3: bets 450
+poandcri has timed out
+poandcri: folds
+poandcri is sitting out
+starsky744: folds
+Uncalled bet (450) returned to wakamayo3
+wakamayo3 collected 685 from pot
+wakamayo3: doesn't show hand
+*** SUMMARY ***
+Total pot 685 | Rake 0
+Board [Th 6s 2s]
+Seat 1: starsky744 folded on the Flop
+Seat 2: wakamayo3 (button) collected (685)
+Seat 4: Laurent06010 (small blind) folded before Flop
+Seat 5: poandcri (big blind) folded on the Flop
+Seat 6: WannaBReg folded before Flop (didn't bet)
+Seat 7: vtoroinarty folded before Flop (didn't bet)
+Seat 8: txancete folded before Flop (didn't bet)
+Seat 9: BURBUJA50 folded before Flop (didn't bet)

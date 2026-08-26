@@ -145,7 +145,8 @@ _HEADER_RE = re.compile(
     r"(?P<buyin>\S+) (?P<currency>[A-Z]+) "
     r"(?P<game>.+?) - Level (?P<level>[IVXLCDM]+|\d+) "
     r"\((?P<sb>[\d,]+)/(?P<bb>[\d,]+)\)"
-    r" - (?P<timestamp>\d{4}/\d{2}/\d{2} \d{1,2}:\d{2}:\d{2}) (?P<tz>\S+)\s*$"
+    r" - (?P<timestamp>\d{4}/\d{2}/\d{2} \d{1,2}:\d{2}:\d{2}) (?P<tz>\S+)"
+    r"(?:\s*\[[^\]]*\])?\s*$"
 )
 
 _TABLE_RE = re.compile(
@@ -238,7 +239,7 @@ def _split_hands(text: str) -> list[str]:
     en la que se produce la baja quedan pegadas al bloque de esa mano.
     """
 
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    normalized = text.lstrip("﻿").replace("\r\n", "\n").replace("\r", "\n")
     blocks = re.split(r"\n\s*\n(?=PokerStars Hand #)", normalized.strip())
     return [b.strip("\n") for b in blocks if b.strip()]
 
@@ -246,7 +247,7 @@ def _split_hands(text: str) -> list[str]:
 def parse_file(path: str) -> list[Hand]:
     """Lee un fichero de hand history y devuelve la lista de manos parseadas."""
 
-    with open(path, encoding="utf-8") as fh:
+    with open(path, encoding="utf-8-sig") as fh:
         content = fh.read()
     return parse_hands(content)
 
