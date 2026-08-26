@@ -645,7 +645,7 @@ def run(
     stats_conn,
     get_max_seats: Callable[[str], int] | None = None,
     positions_path: Path | str | None = None,
-    tournament_id: str | None = None,
+    tournament_ids: list[str] | None = None,
     opacity: float = DEFAULT_OPACITY,
 ) -> None:
     """Arranca el overlay con la configuración por defecto y bloquea hasta cerrarlo.
@@ -654,16 +654,14 @@ def run(
     ``tournament_id`` de la mesa a consultar -pensado para engancharse
     directamente a ``SharedTableState.get_current_players``/``get_max_seats``
     de ``app.py`` (T22), que ya indexan por torneo-.
-    ``tournament_id`` (T18): si se pasa, fija el HUD a esa única mesa en
-    vez de seguir todas las detectadas (T23 es multi-mesa por defecto; este
-    flag pasa a ser una allowlist de un solo elemento, ver
-    :func:`_default_find_tables`), para el caso de querer excluir otras
+    ``tournament_ids`` (T18, allowlist desde T24): si se pasa, fija el HUD a
+    esas mesas en vez de seguir todas las detectadas (T23 es multi-mesa por
+    defecto; ``app.py`` cablea aquí la lista que arma a partir de
+    ``--tournament-id``, repetible), para el caso de querer excluir otras
     mesas de PokerStars abiertas a la vez.
     ``opacity`` (T20): ``-alpha`` de cada caja; se asume ya validado en
     0.0-1.0 por quien llama (``app.py``).
     """
-
-    tournament_ids = [tournament_id] if tournament_id is not None else None
 
     HudController(
         get_current_players,

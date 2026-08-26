@@ -35,6 +35,26 @@ __all__ = ["main", "build_arg_parser", "SharedTableState"]
 _DEFAULT_DB_PATH = Path.home() / ".local" / "share" / "poker-hud" / "stats.db"
 
 
+class _AppendTournamentIds(argparse.Action):
+    """Acumula IDs de torneo de ``--tournament-id`` en una lista (T24).
+
+    T18 trataba ``--tournament-id`` como valor único; T24 lo reinterpreta
+    como allowlist opcional -por defecto (sin el flag) el HUD sigue todas
+    las mesas detectadas, ver :func:`~poker_hud.overlay.hud.run`- así que
+    ahora acepta pasarse varias veces (``--tournament-id A --tournament-id
+    B``) y/o con varios IDs separados por comas en un mismo valor
+    (``--tournament-id A,B``), sin duplicados y preservando el orden.
+    """
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        ids: list[str] = list(getattr(namespace, self.dest) or [])
+        for raw_id in values.split(","):
+            tournament_id = raw_id.strip()
+            if tournament_id and tournament_id not in ids:
+                ids.append(tournament_id)
+        setattr(namespace, self.dest, ids)
+
+
 class SharedTableState:
     """Última alineación de asientos conocida por torneo, compartida entre el hilo del watcher y el overlay.
 
@@ -120,12 +140,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--tournament-id",
+        action=_AppendTournamentIds,
         default=None,
+        metavar="ID",
         help=(
-            "Fija el HUD a la mesa de este único ID de torneo, ignorando cualquier "
-            "otra mesa de PokerStars abierta a la vez (por defecto, sin este flag, el "
-            "HUD sigue todas las mesas detectadas simultáneamente, ver T23). Útil para "
-            "no mostrar cajas sobre mesas que no interesan."
+            "Restringe el HUD a la mesa de este ID de torneo, ignorando cualquier otra "
+            "mesa de PokerStars abierta a la vez. Repetible (--tournament-id A "
+            "--tournament-id B) o con varios IDs separados por comas en un mismo valor "
+            "(--tournament-id A,B) para seguir un subconjunto concreto de mesas. Por "
+            "defecto, sin este flag, el HUD sigue TODAS las mesas de torneo detectadas "
+            "simultáneamente (ver T23)."
         ),
     )
     return parser
@@ -174,13 +198,15 @@ def main(argv: list[str] | None = None) -> int:
     # HudController/run() para pedir get_current_players/get_max_seats con
     # ese mismo tournament_id y seguir todas las mesas detectadas a la vez
     # (en vez de una sola), así que el cableado de abajo ya no necesita
-    # ningún adaptador intermedio.
+    # ningún adaptador intermedio. T24: args.tournament_id ya es la
+    # allowlist (None si no se pasó el flag ninguna vez), así que viaja tal
+    # cual a run()/HudController.
     run(
         state.get_current_players,
         conn,
         get_max_seats=state.get_max_seats,
         positions_path=positions_path,
-        tournament_id=args.tournament_id,
+        tournament_ids=args.tournament_id,
         opacity=args.opacity,
     )
     return 0

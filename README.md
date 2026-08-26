@@ -122,13 +122,15 @@ Argumentos opcionales:
   sesiones (por defecto `~/.local/share/poker-hud/stats.db`).
 - `--poll-interval SEGUNDOS`: frecuencia de sondeo de la carpeta de hand
   history (por defecto 2.0).
-- `--tournament-id ID`: fija el HUD a la mesa de este único torneo,
+- `--tournament-id ID`: restringe el HUD a la mesa de este ID de torneo,
   ignorando cualquier otra mesa de PokerStars abierta a la vez. Sin este
   flag (el caso normal), el overlay sigue **todas** las mesas de torneo
-  detectadas simultáneamente. Usa este flag sólo si querés excluir
-  mesas que no te interesan. Si el ID no coincide con ninguna mesa
-  abierta en ese momento, el HUD simplemente no muestra cajas hasta que
-  esa mesa aparezca.
+  detectadas simultáneamente. Es repetible (`--tournament-id A
+  --tournament-id B`) o admite varios IDs separados por comas en un
+  mismo valor (`--tournament-id A,B`) para seguir sólo un subconjunto
+  concreto de mesas y excluir el resto. Si ninguno de los IDs pasados
+  coincide con una mesa abierta en ese momento, el HUD simplemente no
+  muestra cajas hasta que alguna de esas mesas aparezca.
 - `--opacity FLOAT`: opacidad de las cajas del HUD, de 0.0 (invisible) a
   1.0 (opaca), por defecto 0.32 (bastante transparente, para tapar lo
   menos posible la mesa de detrás sin dejar de leer las stats). Valores
