@@ -32,7 +32,11 @@ jugadores — el parser lo tiene en cuenta.
   siempre-encima). El cálculo de dónde va cada caja y qué texto muestra
   (`overlay.layout`, testeado) está separado del renderizado real con
   Tkinter/X Shape (`overlay.hud`, requiere servidor X y no es testeable
-  por pytest).
+  por pytest). La posición automática es una aproximación geométrica (una
+  elipse sobre la geometría de la mesa); cada caja se puede arrastrar a
+  mano a su posición real y esa posición se recuerda entre sesiones
+  (`overlay.positions`, ver "Ajustar la posición de las cajas a mano" más
+  abajo).
 - `app` (`python -m poker_hud`): punto de entrada único que cablea las
   piezas anteriores en un solo proceso — arranca el watcher en un hilo y
   el overlay en el hilo principal, compartiendo la conexión SQLite de
@@ -113,5 +117,33 @@ Argumentos opcionales:
   sesiones (por defecto `~/.local/share/poker-hud/stats.db`).
 - `--poll-interval SEGUNDOS`: frecuencia de sondeo de la carpeta de hand
   history (por defecto 2.0).
+
+### 5. Ajustar la posición de las cajas a mano
+
+La posición por defecto de cada caja la calcula el HUD geométricamente
+(una elipse alrededor de la mesa) y no siempre coincide con dónde está
+cada asiento en el fieltro de la mesa/tema visual concreto. Para
+corregirla:
+
+1. Con el HUD corriendo y las cajas visibles sobre la mesa, pulsa **F9**
+   para entrar en modo edición. Las cajas dejan de ser click-through (se
+   quedan capturando el ratón en vez de dejar pasar los clicks a la mesa
+   de debajo) y se marcan con un borde amarillo mientras este modo está
+   activo.
+2. Arrastra con el botón izquierdo del ratón cada caja a la posición que
+   prefieras.
+3. Pulsa **F9** de nuevo para salir del modo edición y devolver las cajas
+   a click-through normal.
+
+La posición de cada asiento se guarda automáticamente al soltar el
+arrastre, en `seat_positions.json` junto al fichero de stats (mismo
+directorio que `--db-path`, por defecto
+`~/.local/share/poker-hud/seat_positions.json`) — no hace falta guardar
+nada más ni hay un paso explícito de "guardar". Un asiento que nunca se
+ajustó a mano sigue usando la posición calculada automáticamente, y eso
+no cambia al reiniciar el HUD. Mientras el modo edición está activo, el
+HUD deja de refrescar la posición/stats de las cajas (se congela) hasta
+que se sale de él, para no pelearle la caja al ratón a mitad de un
+arrastre.
 
 Proyecto gestionado vía [panel-tareas](https://github.com/Ivan-frontz/Panel_tareas_automatizado).

@@ -43,6 +43,7 @@ __all__ = [
     "SeatBox",
     "compute_seat_position",
     "compute_seat_positions",
+    "resolve_seat_position",
     "format_stats_line",
     "build_seat_boxes",
     "resolve_max_seats",
@@ -114,6 +115,29 @@ def _seat_angle(seat: int, max_seats: int) -> float:
     return math.pi / 2 + (seat - 1) * (2 * math.pi / max_seats)
 
 
+def _clamp_to_table(
+    table_geometry: "WindowGeometry",
+    x: int,
+    y: int,
+    box_width: int,
+    box_height: int,
+) -> tuple[int, int]:
+    """Recorta ``(x, y)`` para que la caja quede dentro de los límites de la ventana de mesa."""
+
+    min_x = table_geometry.x
+    max_x = table_geometry.x + table_geometry.width - box_width
+    min_y = table_geometry.y
+    max_y = table_geometry.y + table_geometry.height - box_height
+
+    # Si la caja es más grande que la propia ventana, min_x > max_x: en ese
+    # caso degeneramos a la esquina superior izquierda de la ventana en
+    # vez de dejar la caja fuera de rango.
+    x = min(max(x, min_x), max_x) if max_x >= min_x else min_x
+    y = min(max(y, min_y), max_y) if max_y >= min_y else min_y
+
+    return x, y
+
+
 def compute_seat_position(
     table_geometry: "WindowGeometry",
     seat: int,
@@ -141,18 +165,43 @@ def compute_seat_position(
     x = round(point_x - box_width / 2)
     y = round(point_y - box_height / 2)
 
-    min_x = table_geometry.x
-    max_x = table_geometry.x + table_geometry.width - box_width
-    min_y = table_geometry.y
-    max_y = table_geometry.y + table_geometry.height - box_height
+    return _clamp_to_table(table_geometry, x, y, box_width, box_height)
 
-    # Si la caja es más grande que la propia ventana, min_x > max_x: en ese
-    # caso degeneramos a la esquina superior izquierda de la ventana en
-    # vez de dejar la caja fuera de rango.
-    x = min(max(x, min_x), max_x) if max_x >= min_x else min_x
-    y = min(max(y, min_y), max_y) if max_y >= min_y else min_y
 
-    return x, y
+def resolve_seat_position(
+    table_geometry: "WindowGeometry",
+    seat: int,
+    max_seats: int,
+    overrides: "dict[int, tuple[int, int]] | None" = None,
+    box_width: int = DEFAULT_BOX_WIDTH,
+    box_height: int = DEFAULT_BOX_HEIGHT,
+) -> tuple[int, int]:
+    """Posición final de la caja de ``seat`` (T16): la ajustada a mano si existe, si no la calculada.
+
+    ``overrides`` mapea asiento -> ``(dx, dy)``, el offset (no coordenadas
+    absolutas) que el usuario dejó la caja respecto a la esquina superior
+    izquierda de la ventana de mesa la última vez que la arrastró (ver
+    :mod:`poker_hud.overlay.positions`, que es quien persiste ese dict en
+    disco). Guardar un offset relativo a la mesa en vez de coordenadas de
+    pantalla es a propósito: si la ventana de mesa se mueve o cambia de
+    tamaño en la siguiente partida, la posición ajustada a mano se sigue
+    aplicando en el sitio correcto relativo a la mesa, no queda anclada a
+    donde estaba la pantalla la noche que se arrastró.
+
+    Un asiento sin entrada en ``overrides`` (el caso por defecto, sin
+    ajustar nunca a mano) cae en :func:`compute_seat_position` como antes
+    de T16. El resultado, en ambos casos, se recorta a los límites de la
+    ventana de mesa (:func:`_clamp_to_table`) para que un offset guardado
+    contra una mesa más grande no deje la caja fuera de una mesa más
+    pequeña tras redimensionar.
+    """
+
+    if overrides and seat in overrides:
+        dx, dy = overrides[seat]
+        return _clamp_to_table(
+            table_geometry, table_geometry.x + dx, table_geometry.y + dy, box_width, box_height
+        )
+    return compute_seat_position(table_geometry, seat, max_seats, box_width, box_height)
 
 
 def compute_seat_positions(
@@ -160,11 +209,12 @@ def compute_seat_positions(
     max_seats: int,
     box_width: int = DEFAULT_BOX_WIDTH,
     box_height: int = DEFAULT_BOX_HEIGHT,
+    overrides: "dict[int, tuple[int, int]] | None" = None,
 ) -> dict[int, tuple[int, int]]:
-    """Posición de la caja de cada asiento de 1 a ``max_seats``."""
+    """Posición de la caja de cada asiento de 1 a ``max_seats`` (ver :func:`resolve_seat_position`)."""
 
     return {
-        seat: compute_seat_position(table_geometry, seat, max_seats, box_width, box_height)
+        seat: resolve_seat_position(table_geometry, seat, max_seats, overrides, box_width, box_height)
         for seat in range(1, max_seats + 1)
     }
 
@@ -247,6 +297,7 @@ def build_seat_boxes(
     get_stats: Callable[[str], "PlayerStats | None"],
     box_width: int = DEFAULT_BOX_WIDTH,
     box_height: int = DEFAULT_BOX_HEIGHT,
+    overrides: "dict[int, tuple[int, int]] | None" = None,
 ) -> list[SeatBox]:
     """Caja completa (posición + texto) de cada asiento de la mesa.
 
@@ -255,9 +306,11 @@ def build_seat_boxes(
     callable que dado un ``screen_name`` devuelva sus :class:`~poker_hud.stats.PlayerStats`
     (típicamente ``functools.partial(get_player_stats, conn)`` del motor
     de T2) o ``None`` si el jugador es nuevo y aún no hay stats para él.
+    ``overrides`` es el dict asiento -> offset manual de T16, ver
+    :func:`resolve_seat_position`.
     """
 
-    positions = compute_seat_positions(table_geometry, max_seats, box_width, box_height)
+    positions = compute_seat_positions(table_geometry, max_seats, box_width, box_height, overrides)
 
     boxes = []
     for seat in range(1, max_seats + 1):

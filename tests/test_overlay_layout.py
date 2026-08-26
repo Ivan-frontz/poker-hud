@@ -19,6 +19,7 @@ from poker_hud.overlay.layout import (
     compute_seat_positions,
     format_stats_line,
     resolve_max_seats,
+    resolve_seat_position,
 )
 from poker_hud.stats import PlayerStats
 
@@ -95,6 +96,66 @@ def test_compute_seat_position_clamps_when_box_bigger_than_table():
     x, y = compute_seat_position(tiny_table, seat=1, max_seats=9)
     assert x == 10
     assert y == 20
+
+
+def test_resolve_seat_position_falls_back_to_computed_position_without_override():
+    assert resolve_seat_position(TABLE, seat=1, max_seats=9) == compute_seat_position(
+        TABLE, seat=1, max_seats=9
+    )
+    assert resolve_seat_position(TABLE, seat=1, max_seats=9, overrides={}) == compute_seat_position(
+        TABLE, seat=1, max_seats=9
+    )
+    assert resolve_seat_position(
+        TABLE, seat=1, max_seats=9, overrides={2: (10, 20)}
+    ) == compute_seat_position(TABLE, seat=1, max_seats=9)
+
+
+def test_resolve_seat_position_uses_the_manually_dragged_offset_when_present():
+    # T16: offset relativo a la esquina superior izquierda de la mesa, no
+    # coordenadas absolutas, para que siga teniendo sentido si la mesa se
+    # mueve o cambia de tamaño de una sesión a otra.
+    x, y = resolve_seat_position(TABLE, seat=1, max_seats=9, overrides={1: (50, 75)})
+    assert (x, y) == (TABLE.x + 50, TABLE.y + 75)
+
+
+def test_resolve_seat_position_override_moves_with_the_table_window():
+    moved_table = WindowGeometry(x=TABLE.x + 300, y=TABLE.y + 50, width=TABLE.width, height=TABLE.height)
+    overrides = {1: (50, 75)}
+
+    original = resolve_seat_position(TABLE, seat=1, max_seats=9, overrides=overrides)
+    moved = resolve_seat_position(moved_table, seat=1, max_seats=9, overrides=overrides)
+
+    assert moved == (original[0] + 300, original[1] + 50)
+
+
+def test_resolve_seat_position_clamps_override_to_table_bounds():
+    # Un offset guardado contra una mesa más grande (p.ej. de una sesión
+    # anterior con la ventana redimensionada) no debe dejar la caja fuera
+    # de una mesa más pequeña.
+    huge_offset = {1: (TABLE.width * 2, TABLE.height * 2)}
+    x, y = resolve_seat_position(TABLE, seat=1, max_seats=9, overrides=huge_offset)
+    assert TABLE.x <= x <= TABLE.x + TABLE.width - DEFAULT_BOX_WIDTH
+    assert TABLE.y <= y <= TABLE.y + TABLE.height - DEFAULT_BOX_HEIGHT
+
+
+def test_compute_seat_positions_honors_overrides():
+    overrides = {1: (10, 20)}
+    positions = compute_seat_positions(TABLE, max_seats=9, overrides=overrides)
+    assert positions[1] == (TABLE.x + 10, TABLE.y + 20)
+    assert positions[2] == compute_seat_position(TABLE, seat=2, max_seats=9)
+
+
+def test_build_seat_boxes_honors_overrides():
+    seat_players = {1: "Hero"}
+    boxes = build_seat_boxes(
+        TABLE,
+        max_seats=9,
+        seat_players=seat_players,
+        get_stats=lambda name: None,
+        overrides={1: (10, 20)},
+    )
+    by_seat = {b.seat: b for b in boxes}
+    assert (by_seat[1].x, by_seat[1].y) == (TABLE.x + 10, TABLE.y + 20)
 
 
 def _joined_text(segments):
