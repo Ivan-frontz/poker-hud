@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 __all__ = [
     "DEFAULT_BOX_WIDTH",
     "DEFAULT_BOX_HEIGHT",
+    "DEFAULT_OPACITY",
     "DEFAULT_MAX_SEATS",
     "COLOR_NAME",
     "COLOR_HANDS",
@@ -55,6 +56,14 @@ __all__ = [
 # a 3-bet; T13 añadió la tercera línea y T15 reordenó la segunda).
 DEFAULT_BOX_WIDTH = 150
 DEFAULT_BOX_HEIGHT = 60
+
+# Opacidad por defecto de las cajas (T20; bajada desde 0.80, que tapaba
+# demasiado la mesa de detrás). Vive aquí -no en overlay.hud, que ya importa
+# tkinter- para que app.py pueda usarla como default de ``--opacity`` sin
+# tener que importar tkinter sólo para leer un argumento de la CLI (ver
+# comentario sobre el import perezoso de ``poker_hud.overlay.hud`` en
+# app.py).
+DEFAULT_OPACITY = 0.32
 
 # Tamaño de mesa a asumir cuando todavía no se conoce el de la mesa real
 # (por ejemplo, el watcher aún no procesó ninguna mano completa).

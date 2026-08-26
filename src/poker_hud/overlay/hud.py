@@ -107,6 +107,7 @@ from poker_hud.overlay import (
 from poker_hud.overlay.layout import (
     DEFAULT_BOX_HEIGHT,
     DEFAULT_BOX_WIDTH,
+    DEFAULT_OPACITY,
     SeatBox,
     build_seat_boxes,
     resolve_max_seats,
@@ -117,7 +118,6 @@ from poker_hud.stats import PlayerStats, get_player_stats
 __all__ = ["SeatBoxWindow", "HudController", "run"]
 
 _BACKGROUND = "#101010"
-_ALPHA = 0.80
 _POLL_INTERVAL_MS = 1000
 
 # T19: tamaño (cuadrado, en píxeles) y aspecto de la manija de arrastre fija
@@ -144,6 +144,9 @@ class SeatBoxWindow:
     al soltar un arrastre, para que el controlador pueda congelar su
     refresco periódico mientras dura (ver
     :meth:`HudController._on_seat_drag_state_changed`).
+    ``opacity`` (T20) es el valor de ``-alpha`` de la ventana (0.0
+    totalmente transparente, 1.0 opaca); lo decide en última instancia
+    :class:`HudController` a partir del flag ``--opacity`` de la CLI.
     """
 
     def __init__(
@@ -152,6 +155,7 @@ class SeatBoxWindow:
         seat: int,
         on_position_changed: Callable[[int, int, int], None] | None = None,
         on_drag_state_changed: Callable[[int, bool], None] | None = None,
+        opacity: float = DEFAULT_OPACITY,
     ) -> None:
         self._seat = seat
         self._on_position_changed = on_position_changed
@@ -162,7 +166,7 @@ class SeatBoxWindow:
         self._top.overrideredirect(True)
         self._top.attributes("-topmost", True)
         try:
-            self._top.attributes("-alpha", _ALPHA)
+            self._top.attributes("-alpha", opacity)
         except tk.TclError:
             # Sin compositor, algunos gestores de ventanas rechazan -alpha.
             # No es fatal: la caja se queda opaca en vez de semitransparente.
@@ -365,6 +369,10 @@ class HudController:
       Si es ``None``, arrastrar sigue moviendo la caja dentro de la sesión
       pero no sobrevive a un refresco ni a reiniciar el HUD, ya que no hay
       dónde guardar el offset.
+    - ``opacity`` (T20): ``-alpha`` de cada caja (0.0-1.0), ver
+      :func:`build_arg_parser` en ``app.py`` para el flag ``--opacity`` que
+      lo fija. La validación del rango vive ahí, no aquí: para cuando llega
+      a este constructor ya se asume válido.
     """
 
     def __init__(
@@ -378,6 +386,7 @@ class HudController:
         box_height: int = DEFAULT_BOX_HEIGHT,
         poll_interval_ms: int = _POLL_INTERVAL_MS,
         positions_path: Path | str | None = None,
+        opacity: float = DEFAULT_OPACITY,
     ) -> None:
         self._get_current_players = get_current_players
         self._find_table = find_table or _default_find_table
@@ -388,6 +397,7 @@ class HudController:
         self._poll_interval_ms = poll_interval_ms
         self._positions_path = positions_path
         self._overrides = load_seat_positions(positions_path) if positions_path else {}
+        self._opacity = opacity
 
         self._root = tk.Tk()
         self._root.withdraw()  # la ventana raíz no se muestra, sólo las cajas
@@ -481,6 +491,7 @@ class HudController:
                     box.seat,
                     self._on_seat_dragged,
                     self._on_seat_drag_state_changed,
+                    opacity=self._opacity,
                 )
             self._boxes[box.seat].update(box)
 
@@ -527,6 +538,7 @@ def run(
     get_max_seats: Callable[[], int] | None = None,
     positions_path: Path | str | None = None,
     tournament_id: str | None = None,
+    opacity: float = DEFAULT_OPACITY,
 ) -> None:
     """Arranca el overlay con la configuración por defecto y bloquea hasta cerrarlo.
 
@@ -534,6 +546,8 @@ def run(
     torneo en vez de seguir la primera mesa detectada (ver
     :func:`_find_table_for_tournament`), para el caso de más de una mesa
     de PokerStars abierta a la vez.
+    ``opacity`` (T20): ``-alpha`` de cada caja; se asume ya validado en
+    0.0-1.0 por quien llama (``app.py``).
     """
 
     find_table = _find_table_for_tournament(tournament_id) if tournament_id else None
@@ -544,4 +558,5 @@ def run(
         find_table=find_table,
         get_max_seats=get_max_seats,
         positions_path=positions_path,
+        opacity=opacity,
     ).start()
