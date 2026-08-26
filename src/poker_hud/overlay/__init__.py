@@ -63,6 +63,7 @@ __all__ = [
     "parse_wmctrl_output",
     "find_poker_tables",
     "find_table_by_tournament_id",
+    "filter_tables_by_tournament_ids",
     "list_windows",
 ]
 
@@ -242,16 +243,19 @@ def find_table_by_tournament_id(
 ) -> PokerTable | None:
     """Filtra ``tables`` a la única mesa cuyo ``tournament_id`` coincida (T18).
 
-    v1 del HUD sólo sabe seguir una mesa a la vez (:func:`_default_find_table`
-    en :mod:`poker_hud.overlay.hud` se queda siempre con ``tables[0]``). Con
-    dos torneos abiertos a la vez, el orden que devuelve ``wmctrl -l`` no es
-    estable entre sondeos y el HUD salta de una mesa a otra en cada refresco.
-    Esta función es el filtro manual (flag ``--tournament-id`` de ``app.py``)
-    para fijar una mesa concreta en ese caso; no hay selección automática de
-    "la mesa correcta" porque eso es soporte multi-mesa real, fuera de
-    alcance de v1. Si ninguna mesa coincide (torneo aún no tiene mesa
-    abierta, o el ID no matchea ninguna ventana actual) se devuelve ``None``,
-    igual que hace :func:`find_poker_tables` cuando no hay mesas: el HUD
+    Nació cuando el HUD sólo sabía seguir una mesa a la vez (v1: se quedaba
+    siempre con ``tables[0]``, y con dos torneos abiertos el orden que
+    devuelve ``wmctrl -l`` no es estable entre sondeos, así que saltaba de
+    una mesa a otra en cada refresco); esta función era el filtro manual
+    (flag ``--tournament-id`` de ``app.py``) para fijar una mesa concreta en
+    ese caso. T23 hizo el HUD multi-mesa de verdad
+    (:class:`~poker_hud.overlay.hud.HudController` ya sigue todas las mesas
+    detectadas a la vez, ver :func:`filter_tables_by_tournament_ids` para su
+    equivalente en modo allowlist), pero ``--tournament-id`` se conserva con
+    este mismo filtro para fijar el HUD a una única mesa e ignorar el resto
+    a propósito. Si ninguna mesa coincide (torneo aún no tiene mesa abierta,
+    o el ID no matchea ninguna ventana actual) se devuelve ``None``, igual
+    que hace :func:`find_poker_tables` cuando no hay mesas: el HUD
     simplemente no dibuja cajas hasta que la mesa buscada aparezca.
     """
 
@@ -259,6 +263,24 @@ def find_table_by_tournament_id(
         if table.tournament_id == tournament_id:
             return table
     return None
+
+
+def filter_tables_by_tournament_ids(
+    tables: list[PokerTable], tournament_ids: list[str] | None
+) -> list[PokerTable]:
+    """Filtra ``tables`` a las que estén en la allowlist ``tournament_ids`` (T23).
+
+    Generalización de :func:`find_table_by_tournament_id` (T18, que fijaba
+    el HUD a una única mesa) para el HUD multi-mesa de T23: en vez de
+    quedarse con la primera coincidencia, devuelve todas las mesas cuyo
+    ``tournament_id`` esté en la lista, para seguirlas todas a la vez.
+    ``tournament_ids`` en ``None`` significa "sin filtro" (sigue cualquier
+    mesa detectada, el caso por defecto); una lista vacía filtra todo.
+    """
+
+    if tournament_ids is None:
+        return tables
+    return [table for table in tables if table.tournament_id in tournament_ids]
 
 
 def list_windows() -> list[Window]:

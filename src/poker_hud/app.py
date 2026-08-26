@@ -46,8 +46,11 @@ class SharedTableState:
     simultáneos de un mismo nick en la misma carpeta, así que el watcher ya
     procesa manos de varias mesas a la vez. El estado se indexa por
     ``hand.tournament_id`` para no mezclar los asientos de una mesa con los
-    de otra; capa de datos únicamente, sin conectar todavía con el overlay
-    (eso es T23/T24).
+    de otra. T23 conectó este estado indexado con el overlay
+    (:class:`~poker_hud.overlay.hud.HudController`, ver ``main`` más abajo):
+    ``get_current_players``/``get_max_seats`` ya piden explícitamente el
+    ``tournament_id`` de la mesa a consultar en vez de asumir una única mesa
+    global.
     """
 
     def __init__(self) -> None:
@@ -119,10 +122,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--tournament-id",
         default=None,
         help=(
-            "Fija el HUD a la mesa de este ID de torneo en vez de seguir la primera "
-            "mesa de PokerStars detectada (v1 es de una sola mesa: con más de una "
-            "abierta a la vez el orden de wmctrl no es estable entre sondeos y el HUD "
-            "salta de una a otra). Sin este flag, se mantiene el comportamiento actual."
+            "Fija el HUD a la mesa de este único ID de torneo, ignorando cualquier "
+            "otra mesa de PokerStars abierta a la vez (por defecto, sin este flag, el "
+            "HUD sigue todas las mesas detectadas simultáneamente, ver T23). Útil para "
+            "no mostrar cajas sobre mesas que no interesan."
         ),
     )
     return parser
@@ -167,9 +170,11 @@ def main(argv: list[str] | None = None) -> int:
     # dato de presentación del overlay, no una stat de jugador de T2).
     positions_path = db_path.parent / "seat_positions.json"
 
-    # T22: SharedTableState pasó a indexar por tournament_id, pero el
-    # cableado a un único ``run()`` con un solo torneo sigue pendiente de
-    # T23/T24 (multi-mesa real en el overlay). No se toca aquí a propósito.
+    # T22 indexó SharedTableState por tournament_id; T23 generalizó
+    # HudController/run() para pedir get_current_players/get_max_seats con
+    # ese mismo tournament_id y seguir todas las mesas detectadas a la vez
+    # (en vez de una sola), así que el cableado de abajo ya no necesita
+    # ningún adaptador intermedio.
     run(
         state.get_current_players,
         conn,
