@@ -168,6 +168,134 @@ def test_only_counts_as_three_bet_opportunity_when_facing_exactly_one_raise(conn
     assert dan.pfr_count == 1  # sí cuenta para PFR, aunque no sea 3-bet
 
 
+def test_fold_to_3bet_opportunity_when_opener_faces_a_reraise_and_folds(conn):
+    # Alice abre subiendo, Bob la 3-betea, Alice se retira.
+    hand = _hand(
+        1,
+        [("Alice", ActionType.RAISE), ("Bob", ActionType.RAISE), ("Alice", ActionType.FOLD)],
+    )
+    update_stats(conn, hand)
+
+    alice = get_player_stats(conn, "Alice")
+    assert alice.fold_to_3bet_opportunities == 1
+    assert alice.fold_to_3bet_count == 1
+    assert alice.fold_to_3bet_pct == 100.0
+
+
+def test_fold_to_3bet_opportunity_when_opener_faces_a_reraise_and_calls(conn):
+    # Igual que arriba, pero Alice paga el 3-bet en vez de retirarse.
+    hand = _hand(
+        1,
+        [("Alice", ActionType.RAISE), ("Bob", ActionType.RAISE), ("Alice", ActionType.CALL)],
+    )
+    update_stats(conn, hand)
+
+    alice = get_player_stats(conn, "Alice")
+    assert alice.fold_to_3bet_opportunities == 1
+    assert alice.fold_to_3bet_count == 0
+    assert alice.fold_to_3bet_pct == 0.0
+
+
+def test_fold_to_3bet_no_opportunity_when_player_never_opens(conn):
+    # Alice limpa en vez de abrir subiendo: nunca es la primera en subir,
+    # así que no puede sufrir un 3-bet como abridora.
+    hand = _hand(
+        1,
+        [("Alice", ActionType.CALL), ("Bob", ActionType.RAISE), ("Alice", ActionType.FOLD)],
+    )
+    update_stats(conn, hand)
+
+    alice = get_player_stats(conn, "Alice")
+    assert alice.fold_to_3bet_opportunities == 0
+    assert alice.fold_to_3bet_pct is None
+
+
+def test_fold_to_3bet_no_opportunity_when_the_open_is_never_reraised(conn):
+    # Alice abre subiendo y todos pagan/se retiran: nadie le hace 3-bet.
+    hand = _hand(1, [("Alice", ActionType.RAISE), ("Bob", ActionType.FOLD)])
+    update_stats(conn, hand)
+
+    alice = get_player_stats(conn, "Alice")
+    assert alice.fold_to_3bet_opportunities == 0
+    assert alice.fold_to_3bet_pct is None
+
+
+def test_fold_to_3bet_no_opportunity_when_facing_a_cold_4bet(conn):
+    # Alice abre, Bob resube (3-bet a Alice), Carla resube encima (4-bet):
+    # cuando le toca actuar de nuevo a Alice ya hay DOS subidas por delante,
+    # no es la oportunidad limpia de "fold a un 3-bet" (mismo criterio que
+    # three_bet_opportunities exige exactamente una subida).
+    hand = _hand(
+        1,
+        [
+            ("Alice", ActionType.RAISE),
+            ("Bob", ActionType.RAISE),
+            ("Carla", ActionType.RAISE),
+            ("Alice", ActionType.FOLD),
+        ],
+    )
+    update_stats(conn, hand)
+
+    alice = get_player_stats(conn, "Alice")
+    assert alice.fold_to_3bet_opportunities == 0
+    assert alice.fold_to_3bet_pct is None
+
+
+def test_fold_to_3bet_percentage_converges_over_many_hands():
+    conn = connect(":memory:")
+    # Alice siempre abre subiendo y Bob siempre le hace 3-bet. Alice se
+    # retira 1 de cada 4 veces (fold al 3-bet 25%) y paga el resto.
+    for i in range(400):
+        alice_response = ActionType.FOLD if i % 4 == 0 else ActionType.CALL
+        hand = _hand(
+            i,
+            [
+                ("Alice", ActionType.RAISE),
+                ("Bob", ActionType.RAISE),
+                ("Alice", alice_response),
+            ],
+        )
+        update_stats(conn, hand)
+
+    alice = get_player_stats(conn, "Alice")
+    assert alice.hands_played == 400
+    assert alice.fold_to_3bet_opportunities == 400
+    assert alice.fold_to_3bet_count == 100
+    assert alice.fold_to_3bet_pct == 25.0
+
+
+def test_saw_flop_counts_hands_where_the_player_did_not_fold_preflop(conn):
+    hand = _hand(1, [("Alice", ActionType.CALL), ("Bob", ActionType.CHECK)])
+    update_stats(conn, hand)
+
+    alice = get_player_stats(conn, "Alice")
+    assert alice.saw_flop_count == 1
+    assert alice.saw_flop_pct == 100.0
+
+
+def test_saw_flop_excludes_hands_where_the_player_folded_preflop(conn):
+    hand = _hand(1, [("Alice", ActionType.FOLD), ("Bob", ActionType.CHECK)])
+    update_stats(conn, hand)
+
+    alice = get_player_stats(conn, "Alice")
+    assert alice.saw_flop_count == 0
+    assert alice.saw_flop_pct == 0.0
+
+
+def test_saw_flop_percentage_converges_over_many_hands():
+    conn = connect(":memory:")
+    # Alice ve el flop 3 de cada 4 manos (paga o sube) y se retira 1 de 4.
+    for i in range(400):
+        action = ActionType.FOLD if i % 4 == 0 else ActionType.CALL
+        hand = _hand(i, [("Alice", action), ("Bob", ActionType.CHECK)])
+        update_stats(conn, hand)
+
+    alice = get_player_stats(conn, "Alice")
+    assert alice.hands_played == 400
+    assert alice.saw_flop_count == 300
+    assert alice.saw_flop_pct == 75.0
+
+
 def test_sitting_out_players_are_not_counted(conn):
     hand = _hand(
         1,

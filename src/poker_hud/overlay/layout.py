@@ -37,6 +37,8 @@ __all__ = [
     "COLOR_VPIP",
     "COLOR_PFR",
     "COLOR_THREE_BET",
+    "COLOR_FOLD_TO_3BET",
+    "COLOR_SAW_FLOP",
     "StatSegment",
     "SeatBox",
     "compute_seat_position",
@@ -47,9 +49,11 @@ __all__ = [
 ]
 
 # Tamaño por defecto de cada caja, en píxeles. Lo bastante pequeño para no
-# tapar las cartas/fichas de la mesa, lo bastante grande para leer 4 stats.
+# tapar las cartas/fichas de la mesa, lo bastante grande para leer las 6
+# stats repartidas en 3 líneas (nombre, manos+VPIP+PFR+3-bet, fold a
+# 3-bet+vio flop; T13 añadió la tercera línea).
 DEFAULT_BOX_WIDTH = 150
-DEFAULT_BOX_HEIGHT = 46
+DEFAULT_BOX_HEIGHT = 60
 
 # Tamaño de mesa a asumir cuando todavía no se conoce el de la mesa real
 # (por ejemplo, el watcher aún no procesó ninguna mano completa).
@@ -69,6 +73,11 @@ COLOR_HANDS = "#9e9e9e"
 COLOR_VPIP = "#4fa8ff"
 COLOR_PFR = "#ff9f40"
 COLOR_THREE_BET = "#ff5c5c"
+# T13: mismo criterio de contraste sobre _BACKGROUND que el resto de T12.
+# Morado para fold al 3-bet y el verde que ya usaba el texto por defecto
+# antes de T12 para manos que vieron el flop.
+COLOR_FOLD_TO_3BET = "#b06cff"
+COLOR_SAW_FLOP = "#39ff6a"
 
 
 @dataclass(frozen=True)
@@ -171,10 +180,16 @@ def format_stats_line(screen_name: str | None, stats: "PlayerStats | None") -> l
 
     Devuelve una lista de :class:`StatSegment` en vez de un string plano
     porque cada stat se pinta de un color distinto (T12: gris para el nº de
-    manos, azul para VPIP, naranja para PFR, rojo para 3-bet); un único
+    manos, azul para VPIP, naranja para PFR, rojo para 3-bet; T13: morado
+    para fold al 3-bet, verde para manos que vieron el flop); un único
     ``tk.Label`` con un solo ``fg`` no puede mezclar colores dentro del mismo
     texto, así que quien pinta esto (:class:`poker_hud.overlay.hud.SeatBoxWindow`)
     necesita el texto ya trozeado por color.
+
+    Los dos stats de T13 van en una segunda línea de stats (en vez de
+    ampliar la primera) para no saturar el ancho de la caja: la primera
+    línea ya tiene manos+VPIP+PFR+3-bet, y ambas líneas se abrevian
+    (``F3B``, ``SF``) por la misma razón.
     """
 
     if screen_name is None:
@@ -194,7 +209,9 @@ def format_stats_line(screen_name: str | None, stats: "PlayerStats | None") -> l
         StatSegment(f"{stats.hands_played}m ", COLOR_HANDS),
         StatSegment(f"V{_fmt_pct(stats.vpip_pct)} ", COLOR_VPIP),
         StatSegment(f"P{_fmt_pct(stats.pfr_pct)} ", COLOR_PFR),
-        StatSegment(f"3B{_fmt_pct(stats.three_bet_pct)}", COLOR_THREE_BET),
+        StatSegment(f"3B{_fmt_pct(stats.three_bet_pct)}\n", COLOR_THREE_BET),
+        StatSegment(f"F3B{_fmt_pct(stats.fold_to_3bet_pct)} ", COLOR_FOLD_TO_3BET),
+        StatSegment(f"SF{_fmt_pct(stats.saw_flop_pct)}", COLOR_SAW_FLOP),
     ]
 
 

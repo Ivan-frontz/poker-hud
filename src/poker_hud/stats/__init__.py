@@ -13,6 +13,13 @@ stats clásicas de HUD en SQLite:
   resubir (se encontró con exactamente una subida antes de actuar),
   en qué porcentaje subió él mismo (haciendo la segunda subida, el
   "3-bet").
+- Fold al 3-bet % (T13): el reverso del 3-bet %. De las manos en las
+  que el jugador abrió subiendo preflop (fue el primer raiser) y
+  luego se encontró con un 3-bet de otro jugador, en qué porcentaje
+  se retiró en vez de pagar o resubir (4-bet).
+- Manos que vio el flop % (T13): de todas las manos jugadas, en qué
+  porcentaje el jugador seguía en la mano cuando se repartió el flop
+  (no se retiró durante la ronda preflop).
 
 El estado se persiste en SQLite para poder consultarse de forma
 incremental (cada mano nueva actualiza los contadores existentes) y
@@ -54,7 +61,10 @@ CREATE TABLE IF NOT EXISTS player_stats (
     vpip_count INTEGER NOT NULL DEFAULT 0,
     pfr_count INTEGER NOT NULL DEFAULT 0,
     three_bet_opportunities INTEGER NOT NULL DEFAULT 0,
-    three_bet_count INTEGER NOT NULL DEFAULT 0
+    three_bet_count INTEGER NOT NULL DEFAULT 0,
+    fold_to_3bet_opportunities INTEGER NOT NULL DEFAULT 0,
+    fold_to_3bet_count INTEGER NOT NULL DEFAULT 0,
+    saw_flop_count INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS processed_hands (
@@ -73,6 +83,9 @@ class PlayerStats:
     pfr_count: int
     three_bet_opportunities: int
     three_bet_count: int
+    fold_to_3bet_opportunities: int = 0
+    fold_to_3bet_count: int = 0
+    saw_flop_count: int = 0
 
     @property
     def vpip_pct(self) -> float | None:
@@ -85,6 +98,14 @@ class PlayerStats:
     @property
     def three_bet_pct(self) -> float | None:
         return _pct(self.three_bet_count, self.three_bet_opportunities)
+
+    @property
+    def fold_to_3bet_pct(self) -> float | None:
+        return _pct(self.fold_to_3bet_count, self.fold_to_3bet_opportunities)
+
+    @property
+    def saw_flop_pct(self) -> float | None:
+        return _pct(self.saw_flop_count, self.hands_played)
 
 
 def _pct(numerator: int, denominator: int) -> float | None:
@@ -136,6 +157,39 @@ def _preflop_events(hand: Hand) -> list[tuple[str, ActionType, int]]:
     return events
 
 
+def _fold_to_3bet_facts(
+    player_events: list[tuple[str, ActionType, int]],
+) -> tuple[bool, bool]:
+    """(oportunidad_de_fold_al_3bet, se_retiró) para las acciones de un jugador.
+
+    Es el reverso de la lógica de 3-bet: en vez de mirar si el jugador se
+    encuentra con exactamente una subida antes de actuar, busca la subida de
+    apertura del propio jugador (``RAISE`` con ``subidas_previas == 0``) y
+    mira su siguiente acción. ``subidas_previas`` en esa siguiente acción ya
+    incluye la propia subida de apertura del jugador, así que una única
+    subida adicional (el 3-bet en sí) se ve como ``subidas_previas == 2``,
+    no ``1``. Si ese es el caso hubo oportunidad limpia; si esa siguiente
+    acción es ``FOLD``, se retiró ante el 3-bet.
+    """
+
+    open_index = next(
+        (
+            i
+            for i, (_, action_type, raises_before) in enumerate(player_events)
+            if action_type is ActionType.RAISE and raises_before == 0
+        ),
+        None,
+    )
+    if open_index is None or open_index + 1 >= len(player_events):
+        return False, False
+
+    _, next_action_type, raises_before_next = player_events[open_index + 1]
+    if raises_before_next != 2:
+        return False, False
+
+    return True, next_action_type is ActionType.FOLD
+
+
 def _hand_key(hand: Hand) -> str:
     return f"{hand.tournament_id}:{hand.hand_id}"
 
@@ -177,19 +231,29 @@ def update_stats(conn: sqlite3.Connection, hand: Hand) -> None:
                 action_type is ActionType.RAISE for _, action_type, _ in facing_one_raise
             )
 
+            fold_to_3bet_opportunity, fold_to_3bet_made = _fold_to_3bet_facts(player_events)
+
+            saw_flop = not any(
+                action_type is ActionType.FOLD for _, action_type, _ in player_events
+            )
+
             conn.execute(
                 """
                 INSERT INTO player_stats (
                     screen_name, hands_played, vpip_count, pfr_count,
-                    three_bet_opportunities, three_bet_count
+                    three_bet_opportunities, three_bet_count,
+                    fold_to_3bet_opportunities, fold_to_3bet_count, saw_flop_count
                 )
-                VALUES (?, 1, ?, ?, ?, ?)
+                VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(screen_name) DO UPDATE SET
                     hands_played = hands_played + 1,
                     vpip_count = vpip_count + excluded.vpip_count,
                     pfr_count = pfr_count + excluded.pfr_count,
                     three_bet_opportunities = three_bet_opportunities + excluded.three_bet_opportunities,
-                    three_bet_count = three_bet_count + excluded.three_bet_count
+                    three_bet_count = three_bet_count + excluded.three_bet_count,
+                    fold_to_3bet_opportunities = fold_to_3bet_opportunities + excluded.fold_to_3bet_opportunities,
+                    fold_to_3bet_count = fold_to_3bet_count + excluded.fold_to_3bet_count,
+                    saw_flop_count = saw_flop_count + excluded.saw_flop_count
                 """,
                 (
                     player.name,
@@ -197,6 +261,9 @@ def update_stats(conn: sqlite3.Connection, hand: Hand) -> None:
                     int(pfr),
                     int(three_bet_opportunity),
                     int(three_bet_made),
+                    int(fold_to_3bet_opportunity),
+                    int(fold_to_3bet_made),
+                    int(saw_flop),
                 ),
             )
 
@@ -215,7 +282,8 @@ def get_player_stats(conn: sqlite3.Connection, screen_name: str) -> PlayerStats 
         row = conn.execute(
             """
             SELECT screen_name, hands_played, vpip_count, pfr_count,
-                   three_bet_opportunities, three_bet_count
+                   three_bet_opportunities, three_bet_count,
+                   fold_to_3bet_opportunities, fold_to_3bet_count, saw_flop_count
             FROM player_stats
             WHERE screen_name = ?
             """,
