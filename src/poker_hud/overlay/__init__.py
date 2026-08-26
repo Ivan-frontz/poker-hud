@@ -15,8 +15,7 @@ por ventana) como haría falta con xdotool. El formato de esa línea es:
     <id> <desktop> <x> <y> <ancho> <alto> <host> <título>
 
 El título de una mesa de torneo bajo Wine tiene esta forma (asunción de
-diseño, a validar/ajustar contra una captura real cuando haya un cliente
-de PokerStars corriendo):
+diseño original, nunca validada contra un cliente real):
 
     "<nombre de mesa> - Tournament <id de torneo>, Table <nº de mesa>"
 
@@ -25,6 +24,24 @@ por ejemplo ``"Trantor 25 - Tournament 3181234567, Table 1"``. El
 'Trantor 25' ...`` del hand history (T1, :attr:`poker_hud.parser.Hand.table_name`),
 que es justo lo que hace falta para casar una ventana en pantalla con las
 stats de esa mesa.
+
+Contra un cliente real de PokerStars.ES bajo Wine (T7, validado en vivo
+el 2026-08-26) el título observado es en cambio en español y no trae un
+nombre de mesa propio, sino el ID de torneo y el nº de mesa incrustados
+en medio de una frase más larga:
+
+    "<stakes/nivel> - Torneo <id de torneo> mesa <nº de mesa> - Sesión
+    iniciada con el nombre de usuario <nick>"
+
+por ejemplo ``"€2 NL Hold'em [Super KO], €150 Gtd - 25/50 ante 5 -
+Torneo 4022790069 mesa 2 - Sesión iniciada con el nombre de usuario
+wakamayo3"``. Para este formato, ``table_name`` se reconstruye como
+``"<id de torneo> <nº de mesa>"`` porque es el formato que usa
+internamente PokerStars para nombrar mesas de torneo en el hand history
+(ver fixtures de T1 en ``tests/fixtures/*.txt``), a diferencia del
+formato en inglés de arriba que sí se validó solo contra un nombre de
+mesa inventado ("Trantor 25"). Se mantiene el reconocimiento del
+formato en inglés por si algún cliente lo devolviera así.
 
 Todo el módulo, salvo :func:`list_windows`, trabaja sobre listas de
 líneas de texto o de :class:`Window` ya construidas en vez de invocar el
@@ -62,6 +79,23 @@ _WMCTRL_LINE_RE = re.compile(
 _TABLE_TITLE_RE = re.compile(
     r"^(?P<table_name>.+?)\s*-\s*Tournament\s+(?P<tournament_id>\d+)"
     r"(?:\s*,\s*Table\s+(?P<table_number>\d+))?\s*$",
+    re.IGNORECASE,
+)
+
+# Formato real, capturado con `wmctrl -l` contra PokerStars.ES bajo Wine
+# (cliente en español): el título no lleva un nombre de mesa propio, sino
+# el ID de torneo y el nº de mesa incrustados en medio de una frase más
+# larga (stakes, nivel de ciegas, nombre de usuario logueado, etc.), p.ej.
+#
+#   "€2 NL Hold'em [Super KO], €150 Gtd - 25/50 ante 5 - Torneo 4022790069
+#    mesa 2 - Sesión iniciada con el nombre de usuario wakamayo3"
+#
+# Por eso, a diferencia de `_TABLE_TITLE_RE`, no se ancla al string
+# completo ni intenta capturar un "table_name": basta con localizar
+# "Torneo <id> mesa <n>" en cualquier punto del título.
+_TABLE_TITLE_RE_ES = re.compile(
+    r"Torneo\s+(?P<tournament_id>\d+)"
+    r"(?:\s+mesa\s+(?P<table_number>\d+))?",
     re.IGNORECASE,
 )
 
@@ -154,19 +188,49 @@ def find_poker_tables(windows: list[Window]) -> list[PokerTable]:
             continue
 
         match = _TABLE_TITLE_RE.match(window.title)
-        if not match:
+        if match:
+            tables.append(
+                PokerTable(
+                    window=window,
+                    table_name=match.group("table_name").strip(),
+                    tournament_id=match.group("tournament_id"),
+                    table_number=(
+                        int(match.group("table_number"))
+                        if match.group("table_number")
+                        else None
+                    ),
+                )
+            )
             continue
 
+        match_es = _TABLE_TITLE_RE_ES.search(window.title)
+        if not match_es:
+            continue
+
+        tournament_id = match_es.group("tournament_id")
+        table_number = (
+            int(match_es.group("table_number"))
+            if match_es.group("table_number")
+            else None
+        )
+        # El título en español no trae un nombre de mesa propio (ver
+        # docstring de `_TABLE_TITLE_RE_ES`). PokerStars nombra
+        # internamente las mesas de torneo como "<id de torneo> <nº de
+        # mesa>" (ver fixtures de T1 en tests/fixtures/*.txt, p.ej.
+        # "Table '112233445 3' 9-max ..."), así que reconstruimos ese
+        # mismo formato para que siga siendo comparable con
+        # `Hand.table_name`.
+        table_name = (
+            f"{tournament_id} {table_number}"
+            if table_number is not None
+            else tournament_id
+        )
         tables.append(
             PokerTable(
                 window=window,
-                table_name=match.group("table_name").strip(),
-                tournament_id=match.group("tournament_id"),
-                table_number=(
-                    int(match.group("table_number"))
-                    if match.group("table_number")
-                    else None
-                ),
+                table_name=table_name,
+                tournament_id=tournament_id,
+                table_number=table_number,
             )
         )
     return tables
