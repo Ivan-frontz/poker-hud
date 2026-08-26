@@ -216,6 +216,54 @@ def test_final_table_allin_below_blind_and_side_pot():
     assert winners["Sa"] == Decimal("6200")
 
 
+def test_real_pokerstars_es_file_with_bom_and_et_bracket_timestamp():
+    hands = parse_file(str(FIXTURES_DIR / "bom_et_bracket_real_hh.txt"))
+    assert len(hands) == 2
+    hand1, hand2 = hands
+
+    assert hand1.hand_id == "261871593712"
+    assert hand1.tournament_id == "4022790069"
+    assert hand1.level == "VI"
+    assert hand1.small_blind == Decimal("75")
+    assert hand1.big_blind == Decimal("150")
+    assert hand1.ante == Decimal("20")
+    assert len(hand1.players) == 8
+
+    preflop_raises = [
+        a for a in hand1.actions_for(Street.PREFLOP) if a.action_type == ActionType.RAISE
+    ]
+    assert len(preflop_raises) == 1
+    assert preflop_raises[0].player == "BURBUJA50"
+    assert preflop_raises[0].to_amount == Decimal("450")
+
+    assert hand1.board == ["7h", "Kh", "Jd", "7d"]
+    assert hand1.pot == Decimal("4755")
+    assert hand1.winners == [("Laurent06010", Decimal("4755"), "collected")]
+    assert not hand1.is_cancelled
+
+    # Segunda mano: eventos que no aparecen en los fixtures de ejemplo
+    # ("has returned"/"has timed out"/"is sitting out" en medio de una
+    # calle/"doesn't show hand") no deben interrumpir el parseo del resto.
+    assert hand2.hand_id == "261871596476"
+    assert hand2.small_blind == Decimal("75")
+    assert hand2.big_blind == Decimal("150")
+
+    preflop_calls = [
+        a for a in hand2.actions_for(Street.PREFLOP) if a.action_type == ActionType.CALL
+    ]
+    assert {a.player for a in preflop_calls} == {"starsky744", "wakamayo3"}
+
+    flop_bets = [a for a in hand2.actions_for(Street.FLOP) if a.action_type == ActionType.BET]
+    assert len(flop_bets) == 1
+    assert flop_bets[0].player == "wakamayo3"
+    assert flop_bets[0].amount == Decimal("450")
+
+    assert hand2.board == ["Th", "6s", "2s"]
+    assert hand2.pot == Decimal("685")
+    assert hand2.winners == [("wakamayo3", Decimal("685"), "collected")]
+    assert not hand2.is_cancelled
+
+
 def test_parse_hand_rejects_unknown_header():
     with pytest.raises(ParseError):
         parse_hand("no es una mano de PokerStars\notra linea")
