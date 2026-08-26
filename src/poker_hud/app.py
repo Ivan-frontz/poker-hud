@@ -45,15 +45,28 @@ class SharedTableState:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._seat_players: dict[int, str] = {}
+        self._max_seats = 0
 
     def on_hand(self, hand: Hand) -> None:
         seats = {p.seat: p.name for p in hand.players if not p.is_sitting_out}
         with self._lock:
             self._seat_players = seats
+            self._max_seats = hand.max_seats
 
     def get_current_players(self) -> dict[int, str]:
         with self._lock:
             return dict(self._seat_players)
+
+    def get_max_seats(self) -> int:
+        """Tamaño real de la mesa (T1), 0 si aún no se procesó ninguna mano.
+
+        T11: no se puede inferir de forma fiable a partir de las claves de
+        ``get_current_players()`` (nº de asiento ocupado más alto != nº de
+        asientos de la mesa), así que viaja aparte desde ``Hand.max_seats``.
+        """
+
+        with self._lock:
+            return self._max_seats
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -114,5 +127,5 @@ def main(argv: list[str] | None = None) -> int:
 
     from poker_hud.overlay.hud import run
 
-    run(state.get_current_players, conn)
+    run(state.get_current_players, conn, get_max_seats=state.get_max_seats)
     return 0

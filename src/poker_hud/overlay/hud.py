@@ -54,7 +54,13 @@ from functools import partial
 from typing import Callable
 
 from poker_hud.overlay import PokerTable, find_poker_tables, list_windows
-from poker_hud.overlay.layout import DEFAULT_BOX_HEIGHT, DEFAULT_BOX_WIDTH, SeatBox, build_seat_boxes
+from poker_hud.overlay.layout import (
+    DEFAULT_BOX_HEIGHT,
+    DEFAULT_BOX_WIDTH,
+    SeatBox,
+    build_seat_boxes,
+    resolve_max_seats,
+)
 from poker_hud.stats import PlayerStats, get_player_stats
 
 __all__ = ["SeatBoxWindow", "HudController", "run"]
@@ -142,6 +148,11 @@ class HudController:
       para la mano en curso (lo produce el parser/watcher de T1/T3 a partir
       del último ``Hand`` visto; se inyecta porque el overlay no sabe leer
       hand history por sí mismo).
+    - ``get_max_seats``: tamaño real de la mesa en curso (``Hand.max_seats``
+      de T1, vía T3). Puede devolver ``0``/``None`` si aún no llegó ninguna
+      mano completa; en ese caso se cae a :func:`~poker_hud.overlay.layout.resolve_max_seats`
+      (ver T11: antes se inferia del asiento ocupado más alto en
+      ``seat_players``, lo que perdía asientos reales de la mesa).
     - ``get_stats``: ``screen_name`` -> :class:`~poker_hud.stats.PlayerStats`
       (por defecto, el motor de T2 sobre la conexión SQLite dada).
     """
@@ -152,6 +163,7 @@ class HudController:
         stats_conn,
         find_table: Callable[[], PokerTable | None] | None = None,
         get_stats: Callable[[str], PlayerStats | None] | None = None,
+        get_max_seats: Callable[[], int] | None = None,
         box_width: int = DEFAULT_BOX_WIDTH,
         box_height: int = DEFAULT_BOX_HEIGHT,
         poll_interval_ms: int = _POLL_INTERVAL_MS,
@@ -159,6 +171,7 @@ class HudController:
         self._get_current_players = get_current_players
         self._find_table = find_table or _default_find_table
         self._get_stats = get_stats or partial(get_player_stats, stats_conn)
+        self._get_max_seats = get_max_seats or (lambda: 0)
         self._box_width = box_width
         self._box_height = box_height
         self._poll_interval_ms = poll_interval_ms
@@ -178,9 +191,10 @@ class HudController:
         table = self._find_table()
         if table is not None:
             seat_players = self._get_current_players()
+            max_seats = resolve_max_seats(self._get_max_seats(), seat_players)
             boxes = build_seat_boxes(
                 table.geometry,
-                max(seat_players, default=0) or _DEFAULT_MAX_SEATS,
+                max_seats,
                 seat_players,
                 self._get_stats,
                 self._box_width,
@@ -214,15 +228,16 @@ class HudController:
         self._boxes.clear()
 
 
-_DEFAULT_MAX_SEATS = 9
-
-
 def _default_find_table() -> PokerTable | None:
     tables = find_poker_tables(list_windows())
     return tables[0] if tables else None
 
 
-def run(get_current_players: Callable[[], dict[int, str]], stats_conn) -> None:
+def run(
+    get_current_players: Callable[[], dict[int, str]],
+    stats_conn,
+    get_max_seats: Callable[[], int] | None = None,
+) -> None:
     """Arranca el overlay con la configuración por defecto y bloquea hasta cerrarlo."""
 
-    HudController(get_current_players, stats_conn).start()
+    HudController(get_current_players, stats_conn, get_max_seats=get_max_seats).start()
