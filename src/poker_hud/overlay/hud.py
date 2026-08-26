@@ -127,7 +127,7 @@ _POLL_INTERVAL_MS = 1000
 # para poder pincharla con el ratón con comodidad, pero chico para no comerse
 # mucho contenido de la caja.
 _HANDLE_SIZE = 16
-_HANDLE_COLOR = "#ffcc00"
+_HANDLE_COLOR = "#9e9e9e"
 _HANDLE_SYMBOL = "✛"
 
 
