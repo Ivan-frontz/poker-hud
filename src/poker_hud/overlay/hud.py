@@ -195,7 +195,7 @@ if TYPE_CHECKING:
 __all__ = ["SeatBoxWindow", "HudController", "run"]
 
 _BACKGROUND = "#101010"
-_POLL_INTERVAL_MS = 1000
+_POLL_INTERVAL_MS = 200
 
 # T19: tamaño (cuadrado, en píxeles) y aspecto de la manija de arrastre fija
 # en la esquina superior derecha de cada caja. Es también el tamaño del
