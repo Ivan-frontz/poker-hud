@@ -61,16 +61,31 @@ CREATE TABLE IF NOT EXISTS player_stats (
     vpip_count INTEGER NOT NULL DEFAULT 0,
     pfr_count INTEGER NOT NULL DEFAULT 0,
     three_bet_opportunities INTEGER NOT NULL DEFAULT 0,
-    three_bet_count INTEGER NOT NULL DEFAULT 0,
-    fold_to_3bet_opportunities INTEGER NOT NULL DEFAULT 0,
-    fold_to_3bet_count INTEGER NOT NULL DEFAULT 0,
-    saw_flop_count INTEGER NOT NULL DEFAULT 0
+    three_bet_count INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS processed_hands (
     hand_key TEXT PRIMARY KEY
 );
 """
+
+# Migraciones incrementales de esquema, aplicadas en orden sobre bases ya
+# existentes en disco. ``CREATE TABLE IF NOT EXISTS`` (arriba) sólo cubre
+# bases nuevas: si ``stats.db`` ya existe con un esquema más viejo (p.ej. de
+# antes de T13), hace falta añadir las columnas nuevas a mano vía
+# ``ALTER TABLE`` o la app crashea al primer INSERT/SELECT que las use. La
+# versión aplicada se guarda en ``PRAGMA user_version`` (nativo de SQLite, no
+# hace falta una tabla propia); cada entrada de esta lista es la migración
+# para pasar de la versión ``i`` a la ``i + 1``. Al añadir un stat nuevo que
+# requiera columnas, no editar ``_SCHEMA`` directamente: añadir las columnas
+# aquí como un paso nuevo.
+_MIGRATIONS: list[list[tuple[str, str]]] = [
+    [  # -> versión 1 (T13): fold al 3-bet y manos que vieron el flop.
+        ("fold_to_3bet_opportunities", "INTEGER NOT NULL DEFAULT 0"),
+        ("fold_to_3bet_count", "INTEGER NOT NULL DEFAULT 0"),
+        ("saw_flop_count", "INTEGER NOT NULL DEFAULT 0"),
+    ],
+]
 
 
 @dataclass
@@ -135,6 +150,27 @@ def connect(db_path: str = ":memory:") -> sqlite3.Connection:
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(_SCHEMA)
     conn.commit()
+    _migrate(conn)
+
+
+def _table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Aplica las migraciones de ``_MIGRATIONS`` pendientes según ``user_version``."""
+
+    with _ACCESS_LOCK:
+        current_version = conn.execute("PRAGMA user_version").fetchone()[0]
+        for version, columns in enumerate(_MIGRATIONS, start=1):
+            if version <= current_version:
+                continue
+            existing = _table_columns(conn, "player_stats")
+            for column, ddl in columns:
+                if column not in existing:
+                    conn.execute(f"ALTER TABLE player_stats ADD COLUMN {column} {ddl}")
+            conn.execute(f"PRAGMA user_version = {version}")
+            conn.commit()
 
 
 def _preflop_events(hand: Hand) -> list[tuple[str, ActionType, int]]:

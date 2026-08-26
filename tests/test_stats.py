@@ -3,8 +3,10 @@ from decimal import Decimal
 
 import pytest
 
+import sqlite3
+
 from poker_hud.parser import Action, ActionType, Hand, Player, Street
-from poker_hud.stats import connect, get_player_stats, update_stats, update_stats_from_hands
+from poker_hud.stats import connect, get_player_stats, init_db, update_stats, update_stats_from_hands
 
 
 def _hand(hand_id, preflop_actions, *, tournament_id="T1", sitting_out=None, is_cancelled=False):
@@ -358,4 +360,69 @@ def test_stats_persist_across_connections_to_the_same_file(tmp_path):
     assert alice.hands_played == 2
     assert alice.vpip_count == 2
     assert alice.pfr_count == 1
+    conn2.close()
+
+
+def test_init_db_migrates_a_pre_t13_database_without_losing_existing_rows(tmp_path):
+    db_path = str(tmp_path / "stats.sqlite3")
+
+    # Simula una base creada con el esquema de antes de T13 (sólo las
+    # columnas de T2: sin fold_to_3bet_* ni saw_flop_count) y con filas ya
+    # acumuladas de una sesión anterior.
+    old_conn = sqlite3.connect(db_path)
+    old_conn.executescript(
+        """
+        CREATE TABLE player_stats (
+            screen_name TEXT PRIMARY KEY,
+            hands_played INTEGER NOT NULL DEFAULT 0,
+            vpip_count INTEGER NOT NULL DEFAULT 0,
+            pfr_count INTEGER NOT NULL DEFAULT 0,
+            three_bet_opportunities INTEGER NOT NULL DEFAULT 0,
+            three_bet_count INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE processed_hands (hand_key TEXT PRIMARY KEY);
+        """
+    )
+    old_conn.execute(
+        "INSERT INTO player_stats (screen_name, hands_played, vpip_count, pfr_count, "
+        "three_bet_opportunities, three_bet_count) VALUES ('Alice', 10, 4, 2, 3, 1)"
+    )
+    old_conn.commit()
+    old_conn.close()
+
+    conn = sqlite3.connect(db_path)
+    init_db(conn)  # no debe lanzar, aunque la tabla ya exista con el esquema viejo.
+
+    alice = get_player_stats(conn, "Alice")
+    assert alice.hands_played == 10
+    assert alice.vpip_count == 4
+    assert alice.pfr_count == 2
+    assert alice.three_bet_opportunities == 3
+    assert alice.three_bet_count == 1
+    assert alice.fold_to_3bet_opportunities == 0
+    assert alice.fold_to_3bet_count == 0
+    assert alice.saw_flop_count == 0
+
+    # Las stats siguen acumulándose con normalidad tras la migración.
+    update_stats(conn, _hand(1, [("Alice", ActionType.RAISE), ("Bob", ActionType.FOLD)]))
+    alice = get_player_stats(conn, "Alice")
+    assert alice.hands_played == 11
+    conn.close()
+
+
+def test_init_db_is_idempotent_when_run_twice_on_the_same_database(tmp_path):
+    db_path = str(tmp_path / "stats.sqlite3")
+
+    conn1 = connect(db_path)
+    update_stats(conn1, _hand(1, [("Alice", ActionType.RAISE), ("Bob", ActionType.FOLD)]))
+    conn1.close()
+
+    # Reabrir y volver a inicializar (como hace connect() en cada arranque de
+    # la app) no debe fallar ni tocar las columnas que ya se migraron.
+    conn2 = sqlite3.connect(db_path)
+    init_db(conn2)
+    init_db(conn2)
+
+    alice = get_player_stats(conn2, "Alice")
+    assert alice.hands_played == 1
     conn2.close()
