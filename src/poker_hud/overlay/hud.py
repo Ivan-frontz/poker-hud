@@ -66,7 +66,6 @@ from poker_hud.stats import PlayerStats, get_player_stats
 __all__ = ["SeatBoxWindow", "HudController", "run"]
 
 _BACKGROUND = "#101010"
-_FOREGROUND = "#39ff6a"
 _ALPHA = 0.80
 _POLL_INTERVAL_MS = 1000
 
@@ -86,17 +85,31 @@ class SeatBoxWindow:
             pass
         self._top.configure(bg=_BACKGROUND)
 
-        self._label = tk.Label(
+        self._text = tk.Text(
             self._top,
             bg=_BACKGROUND,
-            fg=_FOREGROUND,
             font=("Sans", 9),
-            justify="left",
-            anchor="w",
+            wrap="none",
+            borderwidth=0,
+            highlightthickness=0,
+            padx=4,
+            pady=2,
+            cursor="arrow",
         )
-        self._label.pack(fill="both", expand=True)
+        self._text.configure(state="disabled")
+        self._text.pack(fill="both", expand=True)
+        self._known_tags: set[str] = set()
 
         self._make_click_through()
+
+    def _tag_for_color(self, color: str) -> str:
+        """Nombre del tag de Tk para ``color``, configurándolo la primera vez que se usa."""
+
+        tag = f"color_{color}"
+        if tag not in self._known_tags:
+            self._text.tag_configure(tag, foreground=color)
+            self._known_tags.add(tag)
+        return tag
 
     def _make_click_through(self) -> None:
         """Intenta hacer la ventana click-through vía la extensión X Shape.
@@ -130,7 +143,11 @@ class SeatBoxWindow:
             pass
 
     def update(self, box: SeatBox) -> None:
-        self._label.configure(text=box.text)
+        self._text.configure(state="normal")
+        self._text.delete("1.0", "end")
+        for segment in box.segments:
+            self._text.insert("end", segment.text, self._tag_for_color(segment.color))
+        self._text.configure(state="disabled")
         self._top.geometry(f"{box.width}x{box.height}+{box.x}+{box.y}")
 
     def destroy(self) -> None:
@@ -210,7 +227,7 @@ class HudController:
         seen = set()
         for box in boxes:
             seen.add(box.seat)
-            if not box.text:
+            if not box.segments:
                 if box.seat in self._boxes:
                     self._boxes.pop(box.seat).destroy()
                 continue
