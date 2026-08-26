@@ -123,7 +123,7 @@ def test_format_stats_line_for_player_with_stats():
         saw_flop_count=30,
     )
     segments = format_stats_line("Villain88", stats)
-    assert _joined_text(segments) == "Villain88\n40m V25% P20% 3B25%\nF3B40% SF75%"
+    assert _joined_text(segments) == "Villain88\n40m SF75% V25% P20% 3B25%\nF3B40%"
 
 
 def test_format_stats_line_shows_dash_for_stats_without_opportunities():
@@ -148,8 +148,9 @@ def test_format_stats_line_shows_dash_for_stats_without_opportunities():
 
 def test_format_stats_line_colors_each_stat_differently():
     # T12: cada stat en su propio color en vez de todo en el mismo verde.
-    # T13 añade fold al 3-bet (morado) y manos que vieron el flop (verde)
-    # en una segunda línea de stats.
+    # T13 añade fold al 3-bet (morado) y manos que vieron el flop (verde).
+    # T15 mueve "vio el flop" a la primera línea, justo tras las manos y
+    # antes de VPIP; fold al 3-bet se queda solo en la segunda línea.
     stats = PlayerStats(
         screen_name="Villain88",
         hands_played=40,
@@ -166,11 +167,11 @@ def test_format_stats_line_colors_each_stat_differently():
     assert segments == [
         StatSegment("Villain88\n", COLOR_NAME),
         StatSegment("40m ", COLOR_HANDS),
+        StatSegment("SF75% ", COLOR_SAW_FLOP),
         StatSegment("V25% ", COLOR_VPIP),
         StatSegment("P20% ", COLOR_PFR),
         StatSegment("3B25%\n", COLOR_THREE_BET),
-        StatSegment("F3B40% ", COLOR_FOLD_TO_3BET),
-        StatSegment("SF75%", COLOR_SAW_FLOP),
+        StatSegment("F3B40%", COLOR_FOLD_TO_3BET),
     ]
     # Los 6 colores de stats son todos distintos entre sí.
     assert (
@@ -219,7 +220,7 @@ def test_build_seat_boxes_returns_one_box_per_seat_including_empty_ones():
 
     by_seat = {b.seat: b for b in boxes}
     assert _joined_text(by_seat[1].segments) == "Hero\n- manos"
-    assert _joined_text(by_seat[3].segments) == "Villain88\n20m V25% P20% 3B50%\nF3B50% SF75%"
+    assert _joined_text(by_seat[3].segments) == "Villain88\n20m SF75% V25% P20% 3B50%\nF3B50%"
     # Asientos sin jugador sentado: caja sin segmentos (no se debería dibujar).
     assert by_seat[2].segments == ()
     assert by_seat[4].segments == ()

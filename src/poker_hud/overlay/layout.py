@@ -50,8 +50,8 @@ __all__ = [
 
 # Tamaño por defecto de cada caja, en píxeles. Lo bastante pequeño para no
 # tapar las cartas/fichas de la mesa, lo bastante grande para leer las 6
-# stats repartidas en 3 líneas (nombre, manos+VPIP+PFR+3-bet, fold a
-# 3-bet+vio flop; T13 añadió la tercera línea).
+# stats repartidas en 3 líneas (nombre, manos+vio flop+VPIP+PFR+3-bet, fold
+# a 3-bet; T13 añadió la tercera línea y T15 reordenó la segunda).
 DEFAULT_BOX_WIDTH = 150
 DEFAULT_BOX_HEIGHT = 60
 
@@ -186,10 +186,13 @@ def format_stats_line(screen_name: str | None, stats: "PlayerStats | None") -> l
     texto, así que quien pinta esto (:class:`poker_hud.overlay.hud.SeatBoxWindow`)
     necesita el texto ya trozeado por color.
 
-    Los dos stats de T13 van en una segunda línea de stats (en vez de
-    ampliar la primera) para no saturar el ancho de la caja: la primera
-    línea ya tiene manos+VPIP+PFR+3-bet, y ambas líneas se abrevian
-    (``F3B``, ``SF``) por la misma razón.
+    Los dos stats de T13 arrancaron juntos en una segunda línea (en vez de
+    ampliar la primera) para no saturar el ancho de la caja. T15 movió
+    "vio el flop" (``SF``) a la primera línea, justo después de manos y
+    antes de VPIP, a pedido de Ivan tras probar el HUD en vivo; fold al
+    3-bet (``F3B``) se quedó solo en la segunda línea porque no se pidió
+    moverlo y no había un lugar más natural en la primera. Ambas stats
+    siguen abreviadas (``F3B``, ``SF``) para no saturar el ancho de la caja.
     """
 
     if screen_name is None:
@@ -207,11 +210,11 @@ def format_stats_line(screen_name: str | None, stats: "PlayerStats | None") -> l
     return [
         StatSegment(f"{screen_name}\n", COLOR_NAME),
         StatSegment(f"{stats.hands_played}m ", COLOR_HANDS),
+        StatSegment(f"SF{_fmt_pct(stats.saw_flop_pct)} ", COLOR_SAW_FLOP),
         StatSegment(f"V{_fmt_pct(stats.vpip_pct)} ", COLOR_VPIP),
         StatSegment(f"P{_fmt_pct(stats.pfr_pct)} ", COLOR_PFR),
         StatSegment(f"3B{_fmt_pct(stats.three_bet_pct)}\n", COLOR_THREE_BET),
-        StatSegment(f"F3B{_fmt_pct(stats.fold_to_3bet_pct)} ", COLOR_FOLD_TO_3BET),
-        StatSegment(f"SF{_fmt_pct(stats.saw_flop_pct)}", COLOR_SAW_FLOP),
+        StatSegment(f"F3B{_fmt_pct(stats.fold_to_3bet_pct)}", COLOR_FOLD_TO_3BET),
     ]
 
 
