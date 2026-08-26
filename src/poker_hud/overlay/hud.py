@@ -115,7 +115,12 @@ from functools import partial
 from pathlib import Path
 from typing import Callable
 
-from poker_hud.overlay import PokerTable, find_poker_tables, list_windows
+from poker_hud.overlay import (
+    PokerTable,
+    find_poker_tables,
+    find_table_by_tournament_id,
+    list_windows,
+)
 from poker_hud.overlay.layout import (
     DEFAULT_BOX_HEIGHT,
     DEFAULT_BOX_WIDTH,
@@ -583,14 +588,47 @@ def _default_find_table() -> PokerTable | None:
     return tables[0] if tables else None
 
 
+def _find_table_for_tournament(tournament_id: str) -> Callable[[], PokerTable | None]:
+    """``find_table`` que fija el HUD a la mesa de ``tournament_id`` (T18).
+
+    Sondea las mismas ventanas que :func:`_default_find_table` pero, en vez
+    de quedarse siempre con la primera mesa detectada, filtra por
+    ``tournament_id`` vía :func:`~poker_hud.overlay.find_table_by_tournament_id`.
+    Necesario con más de una mesa abierta a la vez: el orden que devuelve
+    ``wmctrl -l`` no es estable entre sondeos, así que ``tables[0]`` salta de
+    una mesa a otra en cada refresco. Si esa mesa no está abierta (todavía,
+    o ya no), devuelve ``None`` igual que ``_default_find_table`` sin mesas:
+    el HUD deja de dibujar cajas hasta que reaparezca.
+    """
+
+    def _find() -> PokerTable | None:
+        tables = find_poker_tables(list_windows())
+        return find_table_by_tournament_id(tables, tournament_id)
+
+    return _find
+
+
 def run(
     get_current_players: Callable[[], dict[int, str]],
     stats_conn,
     get_max_seats: Callable[[], int] | None = None,
     positions_path: Path | str | None = None,
+    tournament_id: str | None = None,
 ) -> None:
-    """Arranca el overlay con la configuración por defecto y bloquea hasta cerrarlo."""
+    """Arranca el overlay con la configuración por defecto y bloquea hasta cerrarlo.
+
+    ``tournament_id`` (T18): si se pasa, fija el HUD a la mesa de ese
+    torneo en vez de seguir la primera mesa detectada (ver
+    :func:`_find_table_for_tournament`), para el caso de más de una mesa
+    de PokerStars abierta a la vez.
+    """
+
+    find_table = _find_table_for_tournament(tournament_id) if tournament_id else None
 
     HudController(
-        get_current_players, stats_conn, get_max_seats=get_max_seats, positions_path=positions_path
+        get_current_players,
+        stats_conn,
+        find_table=find_table,
+        get_max_seats=get_max_seats,
+        positions_path=positions_path,
     ).start()

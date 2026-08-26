@@ -3,6 +3,7 @@ from poker_hud.overlay import (
     Window,
     WindowGeometry,
     find_poker_tables,
+    find_table_by_tournament_id,
     parse_wmctrl_output,
 )
 
@@ -131,3 +132,48 @@ def test_find_poker_tables_still_recognises_english_title_alongside_spanish():
     assert len(tables) == 2
     table_names = {t.table_name for t in tables}
     assert table_names == {"Trantor 25", "4022790069 2"}
+
+
+# T18: escenario real de la noche del 2026-08-26, dos torneos abiertos a la
+# vez (Ivan se anotó a un segundo torneo mientras probaba el HUD). Con dos
+# mesas abiertas, `wmctrl -l` no devuelve las ventanas en un orden estable
+# entre sondeos, así que la v1 de una sola mesa (`tables[0]` en
+# `_default_find_table`) salta de una a otra en cada refresco. El flag
+# `--tournament-id` fija manualmente cuál seguir.
+TWO_TOURNAMENTS_WMCTRL_OUTPUT = [
+    "0x02a00007  0 100  200  1024 768  ivan-pc Trantor 25 - Tournament 3181234567, Table 1",
+    "0x02a00099  0 900  50   1024 768  ivan-pc Zaire IV - Tournament 4022790069, Table 2",
+]
+
+
+def test_find_table_by_tournament_id_picks_matching_table_among_two_open():
+    windows = parse_wmctrl_output(TWO_TOURNAMENTS_WMCTRL_OUTPUT)
+    tables = find_poker_tables(windows)
+    assert len(tables) == 2
+
+    table = find_table_by_tournament_id(tables, "4022790069")
+
+    assert table is not None
+    assert table.tournament_id == "4022790069"
+    assert table.table_name == "Zaire IV"
+
+
+def test_find_table_by_tournament_id_picks_the_other_matching_table():
+    windows = parse_wmctrl_output(TWO_TOURNAMENTS_WMCTRL_OUTPUT)
+    tables = find_poker_tables(windows)
+
+    table = find_table_by_tournament_id(tables, "3181234567")
+
+    assert table is not None
+    assert table.table_name == "Trantor 25"
+
+
+def test_find_table_by_tournament_id_returns_none_when_no_match():
+    windows = parse_wmctrl_output(TWO_TOURNAMENTS_WMCTRL_OUTPUT)
+    tables = find_poker_tables(windows)
+
+    assert find_table_by_tournament_id(tables, "9999999999") is None
+
+
+def test_find_table_by_tournament_id_returns_none_for_empty_table_list():
+    assert find_table_by_tournament_id([], "3181234567") is None
