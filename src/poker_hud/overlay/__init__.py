@@ -62,6 +62,7 @@ __all__ = [
     "PokerTable",
     "parse_wmctrl_output",
     "find_poker_tables",
+    "find_table_by_tournament_id",
     "list_windows",
 ]
 
@@ -234,6 +235,30 @@ def find_poker_tables(windows: list[Window]) -> list[PokerTable]:
             )
         )
     return tables
+
+
+def find_table_by_tournament_id(
+    tables: list[PokerTable], tournament_id: str
+) -> PokerTable | None:
+    """Filtra ``tables`` a la única mesa cuyo ``tournament_id`` coincida (T18).
+
+    v1 del HUD sólo sabe seguir una mesa a la vez (:func:`_default_find_table`
+    en :mod:`poker_hud.overlay.hud` se queda siempre con ``tables[0]``). Con
+    dos torneos abiertos a la vez, el orden que devuelve ``wmctrl -l`` no es
+    estable entre sondeos y el HUD salta de una mesa a otra en cada refresco.
+    Esta función es el filtro manual (flag ``--tournament-id`` de ``app.py``)
+    para fijar una mesa concreta en ese caso; no hay selección automática de
+    "la mesa correcta" porque eso es soporte multi-mesa real, fuera de
+    alcance de v1. Si ninguna mesa coincide (torneo aún no tiene mesa
+    abierta, o el ID no matchea ninguna ventana actual) se devuelve ``None``,
+    igual que hace :func:`find_poker_tables` cuando no hay mesas: el HUD
+    simplemente no dibuja cajas hasta que la mesa buscada aparezca.
+    """
+
+    for table in tables:
+        if table.tournament_id == tournament_id:
+            return table
+    return None
 
 
 def list_windows() -> list[Window]:

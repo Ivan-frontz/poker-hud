@@ -29,6 +29,17 @@ def test_arg_parser_defaults():
     assert args.hand_history_dir == "/tmp/hh"
     assert args.poll_interval == 2.0
     assert args.db_path
+    assert args.tournament_id is None
+
+
+def test_arg_parser_accepts_tournament_id():
+    # T18: con dos mesas de PokerStars abiertas a la vez, fija el HUD a una.
+    parser = build_arg_parser()
+    args = parser.parse_args(
+        ["--hand-history-dir", "/tmp/hh", "--tournament-id", "4022790069"]
+    )
+
+    assert args.tournament_id == "4022790069"
 
 
 def test_main_reports_missing_hand_history_dir(tmp_path, capsys):

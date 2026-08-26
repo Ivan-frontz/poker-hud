@@ -120,6 +120,14 @@ Argumentos opcionales:
   sesiones (por defecto `~/.local/share/poker-hud/stats.db`).
 - `--poll-interval SEGUNDOS`: frecuencia de sondeo de la carpeta de hand
   history (por defecto 2.0).
+- `--tournament-id ID`: fija el HUD a la mesa de este torneo. El HUD es v1
+  de una sola mesa: sin este flag, sigue siempre la primera mesa de
+  PokerStars que detecta, y con más de un torneo abierto a la vez (p.ej.
+  te anotas a uno nuevo mientras juegas otro) el orden en que las detecta
+  puede cambiar entre sondeos, haciendo que las cajas salten de una mesa a
+  otra. Usa este flag para fijar manualmente cuál seguir en ese caso. Si el
+  ID no coincide con ninguna mesa abierta en ese momento, el HUD
+  simplemente no muestra cajas hasta que esa mesa aparezca.
 
 ### 5. Ajustar la posición de las cajas a mano
 

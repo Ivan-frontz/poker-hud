@@ -96,6 +96,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=2.0,
         help="Segundos entre sondeos de la carpeta de hand history (por defecto 2.0).",
     )
+    parser.add_argument(
+        "--tournament-id",
+        default=None,
+        help=(
+            "Fija el HUD a la mesa de este ID de torneo en vez de seguir la primera "
+            "mesa de PokerStars detectada (v1 es de una sola mesa: con más de una "
+            "abierta a la vez el orden de wmctrl no es estable entre sondeos y el HUD "
+            "salta de una a otra). Sin este flag, se mantiene el comportamiento actual."
+        ),
+    )
     return parser
 
 
@@ -136,5 +146,6 @@ def main(argv: list[str] | None = None) -> int:
         conn,
         get_max_seats=state.get_max_seats,
         positions_path=positions_path,
+        tournament_id=args.tournament_id,
     )
     return 0
