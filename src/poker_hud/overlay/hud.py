@@ -16,13 +16,12 @@ y la reposiciona/redimensiona cada vez que la ventana de mesa se mueve o
 cambia de tamaño (via polling con ``root.after``, reutilizando la misma
 detección de ventana de T4).
 
-*** Modo edición: arrastrar cajas con el ratón (T16) ***
+*** Modo edición: arrastrar cajas con el ratón (T16, atajo global real desde T17) ***
 Mientras el click-through de arriba está activo, un bind normal de
 arrastre (``<ButtonPress-1>``/``<B1-Motion>``) nunca recibiría el evento:
 el click ya se fue a la ventana de PokerStars de debajo antes de llegar a
 la caja. Por eso el arrastre vive detrás de un "modo edición" explícito,
-que alterna la tecla **F9** (atajo global, capturado por la ventana raíz
-de Tk con ``bind_all`` — ver :meth:`HudController._toggle_edit_mode`):
+que alterna la tecla **F9**. Ver :meth:`HudController._toggle_edit_mode`:
 mientras está activo, cada :class:`SeatBoxWindow` desactiva su propio
 click-through (vuelve a capturar el ratón, con un borde amarillo de aviso
 para que sea obvio a golpe de vista qué modo está activo) y permite
@@ -32,6 +31,31 @@ click-through normal en todas las cajas. Se descartó un gesto por caja
 click-through, ningún click aterriza en la caja para empezar — hacía
 falta desactivarlo primero de todos modos, así que un atajo global es la
 opción más simple sin más mecanismo.
+
+F9 como atajo *de verdad* global (T17): la primera versión (T16) capturaba
+F9 con ``self._root.bind_all(...)``, que en Tkinter sólo entrega eventos
+de teclado cuando alguna ventana *de esta misma app* tiene el foco de
+teclado de X11. En el uso real la ventana enfocada es la mesa de
+PokerStars (la raíz de Tk está oculta con ``withdraw`` y nunca puede tener
+foco; las cajas son ``overrideredirect`` y además click-through, así que
+tampoco lo consiguen), así que F9 nunca le llegaba al HUD — sólo "andaba"
+si por casualidad el propio HUD tenía el foco, que es justo lo que no pasa
+mientras se juega. El fix (:meth:`HudController._init_global_hotkey`) usa
+``python-xlib`` para pedirle al servidor X que agarre la tecla a nivel
+global con ``XGrabKey`` sobre la ventana raíz de la pantalla (no una
+ventana de Tk): con eso, el evento de teclado llega aunque el foco esté en
+PokerStars. Esa captura viaja por la conexión X propia de ``python-xlib``,
+en un socket aparte del que usa Tk para su mainloop, así que hace falta un
+hilo dedicado que bloquee en ``display.next_event()`` y, al ver la tecla,
+encole el toggle real en el hilo de Tk vía ``self._root.after(0, ...)``
+-igual que T10 con sqlite3, la API de Tk no es segura de llamar
+directamente desde otro hilo, pero sí lo es encolarla con ``after``-. Si
+``python-xlib`` no está instalada, o el ``grab_key`` falla (servidor sin
+la tecla disponible, u otra app ya la tiene agarrada), se cae de nuevo al
+``bind_all`` de siempre como mecanismo único: sigue sin ser un atajo
+global de verdad en ese caso, pero es mejor que nada si el HUD llega a
+tener el foco, y es el mismo patrón de degradación que ya usa
+``_init_click_through`` sin la librería.
 
 Mientras el modo edición está activo, :class:`HudController` congela el
 refresco periódico (no recalcula ni reposiciona cajas) para que un
@@ -63,7 +87,13 @@ ojo que aparece una caja por asiento con las stats correctas, que siguen a
 la ventana al moverla o redimensionarla, que los clicks sobre las cajas
 le llegan a la mesa de debajo (no al overlay) fuera de modo edición, y
 que F9 + arrastrar con el botón izquierdo mueve la caja y esa posición
-sobrevive al siguiente refresco y a reiniciar el HUD.
+sobrevive al siguiente refresco y a reiniciar el HUD. Importante (T17,
+para no repetir el error de verificación de T16): probar F9 con **otra
+ventana enfocada, no el HUD** — p.ej. haciendo click en la barra de título
+de la mesa de PokerStars (o en la terminal) justo antes de apretar F9-.
+Si sólo se prueba con el propio HUD en foco, un ``bind_all`` de Tk ya
+"funcionaría" y el bug de T17 (F9 no le llega al HUD con PokerStars
+enfocada, que es el caso real de uso) pasaría desapercibido otra vez.
 
 Dependencias del sistema (ninguna es instalable sólo con pip, por eso no
 están en ``pyproject.toml`` como dependencias normales):
@@ -79,6 +109,7 @@ están en ``pyproject.toml`` como dependencias normales):
 
 from __future__ import annotations
 
+import threading
 import tkinter as tk
 from functools import partial
 from pathlib import Path
@@ -103,6 +134,9 @@ _POLL_INTERVAL_MS = 1000
 
 # T16: tecla que alterna el modo edición (ver docstring del módulo para por
 # qué hace falta un modo explícito en vez de un bind de arrastre normal).
+# Formato de secuencia de Tk, usado sólo por el ``bind_all`` de fallback
+# (ver T17 en el docstring del módulo y `HudController._init_global_hotkey`
+# para el atajo global de verdad vía XGrabKey).
 _EDIT_MODE_KEY = "<F9>"
 # Borde de aviso visual mientras una caja está en modo edición, para que sea
 # obvio a golpe de vista qué cajas se pueden arrastrar ahora mismo.
@@ -354,14 +388,113 @@ class HudController:
         self._boxes: dict[int, SeatBoxWindow] = {}
         self._edit_mode = False
         self._last_table_geometry = None
+        self._xlib_hotkey_display = None
+        # Fallback (ver docstring del módulo, T17): sólo dispara si alguna
+        # ventana de esta app tiene el foco de teclado de X11, cosa que no
+        # pasa en el uso real con PokerStars enfocada. Se deja como red de
+        # seguridad por si _init_global_hotkey no puede agarrar la tecla.
         self._root.bind_all(_EDIT_MODE_KEY, self._toggle_edit_mode)
+        self._init_global_hotkey()
 
     def start(self) -> None:
         self._refresh()
         self._root.mainloop()
 
     def stop(self) -> None:
+        if self._xlib_hotkey_display is not None:
+            try:
+                self._xlib_hotkey_display.close()
+            except Exception:
+                # Best-effort: sólo libera el fd cuanto antes; el hilo de
+                # _xlib_hotkey_loop de todos modos es daemon y no bloquea
+                # la salida del proceso.
+                pass
+            self._xlib_hotkey_display = None
         self._root.quit()
+
+    def _init_global_hotkey(self) -> None:
+        """Agarra F9 a nivel de servidor X11 con ``XGrabKey`` (T17).
+
+        A diferencia del ``bind_all`` de Tk (fallback, ver ``__init__``),
+        esto sí es un atajo global de verdad: el servidor X le entrega el
+        evento a esta conexión sin importar qué ventana tenga el foco de
+        teclado, incluida la mesa de PokerStars durante el juego real. Ver
+        el docstring del módulo para el porqué completo.
+
+        Requiere ``python-xlib`` (dependencia opcional, ver
+        ``_init_click_through`` en :class:`SeatBoxWindow` para el mismo
+        patrón). Si no está instalada, o el grab falla (p.ej. otra
+        aplicación ya tiene F9 agarrada de antes), no se hace nada más:
+        el ``bind_all`` de ``__init__`` se queda como único mecanismo,
+        documentado como limitación conocida en ese caso.
+        """
+
+        try:
+            from Xlib import X, XK
+            from Xlib.display import Display
+        except ImportError:
+            return
+
+        try:
+            display = Display()
+            root_window = display.screen().root
+            keycode = display.keysym_to_keycode(XK.XK_F9)
+            # AnyModifier: agarra F9 sin importar qué otras teclas
+            # modificadoras (Shift, Ctrl, Num/Caps Lock...) estén activas a
+            # la vez, en vez de tener que enumerar a mano cada combinación
+            # de "modificadores de bloqueo" que X trata como estado
+            # aparte -el mismo problema de siempre al usar XGrabKey con un
+            # modificador concreto en vez de AnyModifier.
+            root_window.grab_key(keycode, X.AnyModifier, True, X.GrabModeAsync, X.GrabModeAsync)
+            display.sync()
+        except Exception:
+            return
+
+        self._xlib_hotkey_display = display
+        thread = threading.Thread(
+            target=self._xlib_hotkey_loop, args=(display, keycode), daemon=True
+        )
+        thread.start()
+
+    def _xlib_hotkey_loop(self, display, keycode: int) -> None:
+        """Bucle bloqueante (en un hilo aparte) que espera el F9 agarrado globalmente.
+
+        ``display.next_event()`` bloquea leyendo del socket propio de esta
+        conexión Xlib -aparte del que usa Tk para su mainloop, que no lo
+        integra-, así que no hay forma de sondearlo desde ``root.after``
+        sin más: hace falta este hilo dedicado. Nunca se llama a la API de
+        Tk directamente desde aquí -mismo motivo que la lección de T10 con
+        sqlite3: Tk no es seguro de usar desde un hilo ajeno al del
+        mainloop-, sólo se encola el toggle real con ``after(0, ...)``,
+        que sí es seguro y lo ejecuta en el hilo de Tk en la próxima vuelta
+        del mainloop.
+
+        Termina sola cuando ``display.close()`` (ver :meth:`stop`) rompe
+        la conexión y ``next_event`` lanza; el hilo es además ``daemon``,
+        así que tampoco bloquea la salida del proceso si eso no llega a
+        pasar.
+        """
+
+        from Xlib import X
+
+        while True:
+            try:
+                event = display.next_event()
+            except Exception:
+                return
+            if event.type == X.KeyPress and event.detail == keycode:
+                try:
+                    self._root.after(0, self._toggle_edit_mode)
+                except RuntimeError:
+                    # Tcl exige que el mainloop ya esté corriendo en el
+                    # hilo que creó el intérprete para poder encolar algo
+                    # desde otro hilo ("main thread is not in main loop");
+                    # puede pasar si F9 se aprieta en la breve ventana
+                    # entre construir HudController y llamar a start(). No
+                    # es fatal: se pierde ese toggle puntual, pero el hilo
+                    # sigue vivo para la siguiente pulsación de F9, que ya
+                    # encontrará el mainloop corriendo.
+                    pass
 
     def _toggle_edit_mode(self, event: tk.Event | None = None) -> None:
         """Alterna el modo edición (T16) en todas las cajas activas, vía F9.
