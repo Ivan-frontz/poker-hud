@@ -127,5 +127,14 @@ def main(argv: list[str] | None = None) -> int:
 
     from poker_hud.overlay.hud import run
 
-    run(state.get_current_players, conn, get_max_seats=state.get_max_seats)
+    # T16: junto al fichero de stats, no dentro (posición de caja es un
+    # dato de presentación del overlay, no una stat de jugador de T2).
+    positions_path = db_path.parent / "seat_positions.json"
+
+    run(
+        state.get_current_players,
+        conn,
+        get_max_seats=state.get_max_seats,
+        positions_path=positions_path,
+    )
     return 0

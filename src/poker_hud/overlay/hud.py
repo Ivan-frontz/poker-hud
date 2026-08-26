@@ -16,6 +16,28 @@ y la reposiciona/redimensiona cada vez que la ventana de mesa se mueve o
 cambia de tamaño (via polling con ``root.after``, reutilizando la misma
 detección de ventana de T4).
 
+*** Modo edición: arrastrar cajas con el ratón (T16) ***
+Mientras el click-through de arriba está activo, un bind normal de
+arrastre (``<ButtonPress-1>``/``<B1-Motion>``) nunca recibiría el evento:
+el click ya se fue a la ventana de PokerStars de debajo antes de llegar a
+la caja. Por eso el arrastre vive detrás de un "modo edición" explícito,
+que alterna la tecla **F9** (atajo global, capturado por la ventana raíz
+de Tk con ``bind_all`` — ver :meth:`HudController._toggle_edit_mode`):
+mientras está activo, cada :class:`SeatBoxWindow` desactiva su propio
+click-through (vuelve a capturar el ratón, con un borde amarillo de aviso
+para que sea obvio a golpe de vista qué modo está activo) y permite
+arrastrarla con el botón izquierdo; al soltar F9 se restaura el
+click-through normal en todas las cajas. Se descartó un gesto por caja
+(p.ej. click derecho) porque, con la región de input vacía del
+click-through, ningún click aterriza en la caja para empezar — hacía
+falta desactivarlo primero de todos modos, así que un atajo global es la
+opción más simple sin más mecanismo.
+
+Mientras el modo edición está activo, :class:`HudController` congela el
+refresco periódico (no recalcula ni reposiciona cajas) para que un
+sondeo de mesa a mitad de un arrastre no le devuelva la caja a la
+posición vieja debajo del ratón del usuario.
+
 *** Por qué este módulo no tiene tests automatizados ***
 Crear una ventana Tk real (``tkinter.Tk()``) requiere un servidor X activo
 (``$DISPLAY``) y no falla de forma limpia si no lo hay: no hay forma de
@@ -23,17 +45,25 @@ instanciarla en un runner de CI headless sin un Xvfb de por medio, y el
 click-through de verdad depende además de la extensión X Shape del
 servidor concreto. Por eso pytest no puede ejercitar nada de este archivo.
 La única lógica de este módulo que es determinista y no depende de X
--dónde va cada caja, qué texto lleva- se extrajo a
-:mod:`poker_hud.overlay.layout`, que sí está cubierta por
-``tests/test_overlay_layout.py``. Este archivo se limita a leer esos
-resultados y pintarlos.
+-dónde va cada caja, qué texto lleva, y qué posición usar si el asiento
+tiene un offset guardado a mano (T16)- se extrajo a
+:mod:`poker_hud.overlay.layout` y :mod:`poker_hud.overlay.positions`, que
+sí están cubiertas por tests (``tests/test_overlay_layout.py``,
+``tests/test_overlay_positions.py``). Este archivo se limita a leer esos
+resultados y pintarlos, y a reaccionar a los eventos de ratón/teclado de
+Tk. El gesto de arrastre en sí (modo edición con F9 + arrastrar con el
+botón izquierdo, ver arriba) sólo se verificó a mano contra una mesa
+real, no con un test automatizado: quien revise T16 no debería esperar
+cobertura de pytest para eso.
 
 Verificación manual (no automatizable): lanzar ``run()`` con una mesa de
 PokerStars real (o cualquier ventana renombrada a un título con pinta de
 mesa, ver :mod:`poker_hud.overlay`) corriendo bajo X11/Wine, y comprobar a
 ojo que aparece una caja por asiento con las stats correctas, que siguen a
-la ventana al moverla o redimensionarla, y que los clicks sobre las cajas
-le llegan a la mesa de debajo (no al overlay).
+la ventana al moverla o redimensionarla, que los clicks sobre las cajas
+le llegan a la mesa de debajo (no al overlay) fuera de modo edición, y
+que F9 + arrastrar con el botón izquierdo mueve la caja y esa posición
+sobrevive al siguiente refresco y a reiniciar el HUD.
 
 Dependencias del sistema (ninguna es instalable sólo con pip, por eso no
 están en ``pyproject.toml`` como dependencias normales):
@@ -44,13 +74,14 @@ están en ``pyproject.toml`` como dependencias normales):
   (detección de ventana, :mod:`poker_hud.overlay.layout`) no depende de
   ``tkinter`` y sigue funcionando.
 - ``python-xlib`` (``pip install python-xlib``), opcional: sin ella el
-  overlay funciona igual pero sin click-through, ver ``_make_click_through``.
+  overlay funciona igual pero sin click-through, ver ``_init_click_through``.
 """
 
 from __future__ import annotations
 
 import tkinter as tk
 from functools import partial
+from pathlib import Path
 from typing import Callable
 
 from poker_hud.overlay import PokerTable, find_poker_tables, list_windows
@@ -61,6 +92,7 @@ from poker_hud.overlay.layout import (
     build_seat_boxes,
     resolve_max_seats,
 )
+from poker_hud.overlay.positions import load_seat_positions, save_seat_position
 from poker_hud.stats import PlayerStats, get_player_stats
 
 __all__ = ["SeatBoxWindow", "HudController", "run"]
@@ -69,11 +101,36 @@ _BACKGROUND = "#101010"
 _ALPHA = 0.80
 _POLL_INTERVAL_MS = 1000
 
+# T16: tecla que alterna el modo edición (ver docstring del módulo para por
+# qué hace falta un modo explícito en vez de un bind de arrastre normal).
+_EDIT_MODE_KEY = "<F9>"
+# Borde de aviso visual mientras una caja está en modo edición, para que sea
+# obvio a golpe de vista qué cajas se pueden arrastrar ahora mismo.
+_EDIT_BORDER_COLOR = "#ffcc00"
+
 
 class SeatBoxWindow:
-    """Una única ventana Tk (``Toplevel``) que representa la caja de un asiento."""
+    """Una única ventana Tk (``Toplevel``) que representa la caja de un asiento.
 
-    def __init__(self, master: tk.Misc) -> None:
+    ``seat`` y ``on_position_changed`` son de T16: ``seat`` identifica esta
+    caja frente a :class:`HudController` (que gestiona una por asiento), y
+    ``on_position_changed(seat, x, y)`` se llama con las coordenadas
+    absolutas de pantalla tras soltar un arrastre en modo edición, para que
+    el controlador las convierta a offset relativo a la mesa y las
+    persista (ver :mod:`poker_hud.overlay.positions`).
+    """
+
+    def __init__(
+        self,
+        master: tk.Misc,
+        seat: int,
+        on_position_changed: Callable[[int, int, int], None] | None = None,
+    ) -> None:
+        self._seat = seat
+        self._on_position_changed = on_position_changed
+        self._drag_offset: tuple[int, int] | None = None
+        self._edit_mode = False
+
         self._top = tk.Toplevel(master)
         self._top.overrideredirect(True)
         self._top.attributes("-topmost", True)
@@ -100,7 +157,10 @@ class SeatBoxWindow:
         self._text.pack(fill="both", expand=True)
         self._known_tags: set[str] = set()
 
-        self._make_click_through()
+        self._xlib_display = None
+        self._xlib_window = None
+        self._xlib_shape = None
+        self._init_click_through()
 
     def _tag_for_color(self, color: str) -> str:
         """Nombre del tag de Tk para ``color``, configurándolo la primera vez que se usa."""
@@ -111,14 +171,18 @@ class SeatBoxWindow:
             self._known_tags.add(tag)
         return tag
 
-    def _make_click_through(self) -> None:
-        """Intenta hacer la ventana click-through vía la extensión X Shape.
+    def _init_click_through(self) -> None:
+        """Prepara la ventana para poder alternar click-through, y lo activa.
 
         Requiere ``python-xlib`` (dependencia opcional, no listada en
         ``pyproject.toml`` porque el resto del proyecto no la necesita).
         Si no está instalada, o el servidor X no soporta la extensión
         Shape, la caja se queda visible pero capturando el ratón: se
-        documenta como limitación conocida en vez de fallar.
+        documenta como limitación conocida en vez de fallar. En ese caso
+        tampoco hay nada que alternar en modo edición (T16): la caja ya
+        captura el ratón siempre, así que el arrastre funcionaría sin
+        pasar por modo edición, pero perdiendo el click-through normal
+        fuera de él.
         """
 
         try:
@@ -128,19 +192,103 @@ class SeatBoxWindow:
             return
 
         try:
+            # Sin esto, winfo_id() puede devolver el id de una ventana que
+            # Tk aún no terminó de crear en el servidor X: la conexión propia
+            # de python-xlib (independiente de la de Tk) la ve como
+            # inexistente y sus peticiones fallan con BadWindow.
+            self._top.update_idletasks()
             display = Display()
             window_id = self._top.winfo_id()
             xlib_window = display.create_resource_object("window", window_id)
             if not display.has_extension("SHAPE"):
                 return
-            # Región de input vacía == ningún click aterriza en esta ventana.
             xlib_window.shape_select_input(0)
-            shape.set_bounding_shape(xlib_window, [])
-            display.sync()
+            self._xlib_display = display
+            self._xlib_window = xlib_window
+            self._xlib_shape = shape
         except Exception:
             # Cualquier fallo de la extensión Shape es no-fatal: peor caso,
             # la caja no es click-through pero sigue mostrando las stats.
+            return
+
+        self._apply_click_through(True)
+
+    def _apply_click_through(self, enabled: bool) -> None:
+        """Activa o desactiva el click-through vía la región de input de X Shape.
+
+        ``enabled=True``: región de input vacía, ningún click aterriza en
+        esta ventana (le llegan a la mesa de debajo). ``enabled=False``
+        (T16, modo edición): se resetea la región de input al valor por
+        defecto (toda la ventana, vía ``ShapeMask`` con ``source_bitmap``
+        nulo, la forma estándar de "quitar" una forma de la extensión
+        Shape), para que la caja vuelva a capturar clicks y se pueda
+        arrastrar.
+        """
+
+        if self._xlib_window is None:
+            return
+        try:
+            from Xlib import X
+
+            if enabled:
+                self._xlib_window.shape_rectangles(
+                    self._xlib_shape.SO.Set, self._xlib_shape.SK.Input, 0, 0, 0, []
+                )
+            else:
+                self._xlib_window.shape_mask(
+                    self._xlib_shape.SO.Set, self._xlib_shape.SK.Input, 0, 0, X.NONE
+                )
+            self._xlib_display.sync()
+        except Exception:
+            # No-fatal (ver _init_click_through): peor caso, el modo
+            # edición no cambia el click-through pero el arrastre sigue
+            # intentándose con los binds de ratón normales de Tk.
             pass
+
+    def set_edit_mode(self, enabled: bool) -> None:
+        """Activa/desactiva el arrastre con el ratón para esta caja (T16).
+
+        Ver el docstring del módulo para por qué hace falta un modo
+        explícito en vez de un simple bind de arrastre: mientras el
+        click-through está activo, los clicks nunca llegan a la caja.
+        """
+
+        self._edit_mode = enabled
+        self._apply_click_through(not enabled)
+
+        if enabled:
+            self._text.configure(
+                cursor="fleur", highlightthickness=2, highlightbackground=_EDIT_BORDER_COLOR
+            )
+            self._text.bind("<ButtonPress-1>", self._on_drag_start)
+            self._text.bind("<B1-Motion>", self._on_drag_motion)
+            self._text.bind("<ButtonRelease-1>", self._on_drag_end)
+        else:
+            self._drag_offset = None
+            self._text.configure(cursor="arrow", highlightthickness=0)
+            self._text.unbind("<ButtonPress-1>")
+            self._text.unbind("<B1-Motion>")
+            self._text.unbind("<ButtonRelease-1>")
+
+    def _on_drag_start(self, event: tk.Event) -> None:
+        self._drag_offset = (event.x, event.y)
+
+    def _on_drag_motion(self, event: tk.Event) -> None:
+        if self._drag_offset is None:
+            return
+        offset_x, offset_y = self._drag_offset
+        # winfo_pointerx/y son absolutos de pantalla; restar el punto donde
+        # empezó el arrastre dentro de la caja mantiene el cursor "pegado"
+        # al mismo punto de la caja mientras se mueve, en vez de saltar la
+        # esquina superior izquierda al cursor.
+        new_x = self._top.winfo_pointerx() - offset_x
+        new_y = self._top.winfo_pointery() - offset_y
+        self._top.geometry(f"+{new_x}+{new_y}")
+
+    def _on_drag_end(self, event: tk.Event) -> None:
+        self._drag_offset = None
+        if self._on_position_changed is not None:
+            self._on_position_changed(self._seat, self._top.winfo_x(), self._top.winfo_y())
 
     def update(self, box: SeatBox) -> None:
         self._text.configure(state="normal")
@@ -172,6 +320,11 @@ class HudController:
       ``seat_players``, lo que perdía asientos reales de la mesa).
     - ``get_stats``: ``screen_name`` -> :class:`~poker_hud.stats.PlayerStats`
       (por defecto, el motor de T2 sobre la conexión SQLite dada).
+    - ``positions_path`` (T16): fichero donde persisten los offsets de
+      asiento ajustados a mano (ver :mod:`poker_hud.overlay.positions`).
+      Si es ``None``, el modo edición sigue funcionando dentro de la
+      sesión (arrastrar mueve la caja) pero no sobrevive a un refresco ni
+      a reiniciar el HUD, ya que no hay dónde guardar el offset.
     """
 
     def __init__(
@@ -184,6 +337,7 @@ class HudController:
         box_width: int = DEFAULT_BOX_WIDTH,
         box_height: int = DEFAULT_BOX_HEIGHT,
         poll_interval_ms: int = _POLL_INTERVAL_MS,
+        positions_path: Path | str | None = None,
     ) -> None:
         self._get_current_players = get_current_players
         self._find_table = find_table or _default_find_table
@@ -192,10 +346,15 @@ class HudController:
         self._box_width = box_width
         self._box_height = box_height
         self._poll_interval_ms = poll_interval_ms
+        self._positions_path = positions_path
+        self._overrides = load_seat_positions(positions_path) if positions_path else {}
 
         self._root = tk.Tk()
         self._root.withdraw()  # la ventana raíz no se muestra, sólo las cajas
         self._boxes: dict[int, SeatBoxWindow] = {}
+        self._edit_mode = False
+        self._last_table_geometry = None
+        self._root.bind_all(_EDIT_MODE_KEY, self._toggle_edit_mode)
 
     def start(self) -> None:
         self._refresh()
@@ -204,9 +363,49 @@ class HudController:
     def stop(self) -> None:
         self._root.quit()
 
+    def _toggle_edit_mode(self, event: tk.Event | None = None) -> None:
+        """Alterna el modo edición (T16) en todas las cajas activas, vía F9.
+
+        Congela también el refresco periódico (ver :meth:`_refresh`)
+        mientras está activo: un sondeo de mesa a mitad de un arrastre
+        recalcularía la posición "de siempre" y le pelearía la caja al
+        usuario debajo del ratón.
+        """
+
+        self._edit_mode = not self._edit_mode
+        for box in self._boxes.values():
+            box.set_edit_mode(self._edit_mode)
+
+    def _on_seat_dragged(self, seat: int, x: int, y: int) -> None:
+        """Callback de :class:`SeatBoxWindow` al soltar un arrastre (T16).
+
+        Convierte las coordenadas absolutas de pantalla a offset relativo
+        a la esquina superior izquierda de la mesa (ver
+        :func:`~poker_hud.overlay.layout.resolve_seat_position` para por
+        qué relativo y no absoluto) y lo persiste. Sin geometría de mesa
+        conocida (no debería pasar en la práctica: hace falta una mesa
+        detectada para entrar en modo edición y ver cajas que arrastrar)
+        no hay base para calcular el offset, así que se ignora el
+        arrastre en vez de guardar algo sin sentido.
+        """
+
+        if self._last_table_geometry is None:
+            return
+
+        dx = x - self._last_table_geometry.x
+        dy = y - self._last_table_geometry.y
+        self._overrides[seat] = (dx, dy)
+        if self._positions_path is not None:
+            save_seat_position(self._positions_path, seat, dx, dy)
+
     def _refresh(self) -> None:
+        if self._edit_mode:
+            self._root.after(self._poll_interval_ms, self._refresh)
+            return
+
         table = self._find_table()
         if table is not None:
+            self._last_table_geometry = table.geometry
             seat_players = self._get_current_players()
             max_seats = resolve_max_seats(self._get_max_seats(), seat_players)
             boxes = build_seat_boxes(
@@ -216,6 +415,7 @@ class HudController:
                 self._get_stats,
                 self._box_width,
                 self._box_height,
+                self._overrides,
             )
             self._sync_boxes(boxes)
         else:
@@ -232,7 +432,7 @@ class HudController:
                     self._boxes.pop(box.seat).destroy()
                 continue
             if box.seat not in self._boxes:
-                self._boxes[box.seat] = SeatBoxWindow(self._root)
+                self._boxes[box.seat] = SeatBoxWindow(self._root, box.seat, self._on_seat_dragged)
             self._boxes[box.seat].update(box)
 
         for seat in list(self._boxes):
@@ -254,7 +454,10 @@ def run(
     get_current_players: Callable[[], dict[int, str]],
     stats_conn,
     get_max_seats: Callable[[], int] | None = None,
+    positions_path: Path | str | None = None,
 ) -> None:
     """Arranca el overlay con la configuración por defecto y bloquea hasta cerrarlo."""
 
-    HudController(get_current_players, stats_conn, get_max_seats=get_max_seats).start()
+    HudController(
+        get_current_players, stats_conn, get_max_seats=get_max_seats, positions_path=positions_path
+    ).start()
