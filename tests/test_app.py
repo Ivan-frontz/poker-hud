@@ -35,14 +35,54 @@ def test_arg_parser_defaults():
     assert args.tournament_id is None
 
 
-def test_arg_parser_accepts_tournament_id():
-    # T18: con dos mesas de PokerStars abiertas a la vez, fija el HUD a una.
+def test_arg_parser_without_tournament_id_follows_all_tables():
+    # T24: sin el flag, el HUD sigue todas las mesas detectadas (None = sin allowlist).
+    parser = build_arg_parser()
+    args = parser.parse_args(["--hand-history-dir", "/tmp/hh"])
+
+    assert args.tournament_id is None
+
+
+def test_arg_parser_accepts_a_single_tournament_id():
+    # T18/T24: con un solo --tournament-id, la allowlist tiene un elemento.
     parser = build_arg_parser()
     args = parser.parse_args(
         ["--hand-history-dir", "/tmp/hh", "--tournament-id", "4022790069"]
     )
 
-    assert args.tournament_id == "4022790069"
+    assert args.tournament_id == ["4022790069"]
+
+
+def test_arg_parser_accepts_several_tournament_ids_repeated():
+    # T24: --tournament-id repetible para seguir un subconjunto de mesas.
+    parser = build_arg_parser()
+    args = parser.parse_args(
+        [
+            "--hand-history-dir",
+            "/tmp/hh",
+            "--tournament-id",
+            "4022790069",
+            "--tournament-id",
+            "4022790070",
+        ]
+    )
+
+    assert args.tournament_id == ["4022790069", "4022790070"]
+
+
+def test_arg_parser_accepts_several_tournament_ids_comma_separated():
+    # T24: también acepta varios IDs separados por comas en un mismo valor.
+    parser = build_arg_parser()
+    args = parser.parse_args(
+        [
+            "--hand-history-dir",
+            "/tmp/hh",
+            "--tournament-id",
+            "4022790069,4022790070",
+        ]
+    )
+
+    assert args.tournament_id == ["4022790069", "4022790070"]
 
 
 def test_main_reports_missing_hand_history_dir(tmp_path, capsys):
