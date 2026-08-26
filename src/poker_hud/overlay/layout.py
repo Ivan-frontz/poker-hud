@@ -256,8 +256,12 @@ def format_stats_line(screen_name: str | None, stats: "PlayerStats | None") -> l
     "vio el flop" (``SF``) a la primera línea, justo después de manos y
     antes de VPIP, a pedido de Ivan tras probar el HUD en vivo; fold al
     3-bet (``F3B``) se quedó solo en la segunda línea porque no se pidió
-    moverlo y no había un lugar más natural en la primera. Ambas stats
-    siguen abreviadas (``F3B``, ``SF``) para no saturar el ancho de la caja.
+    moverlo y no había un lugar más natural en la primera. T27 bajó 3-bet
+    (``3B``) también a la segunda línea, adelante de ``F3B`` (mismo orden
+    relativo que tenían en la primera línea), porque con la caja ya
+    reducida (T25/T26) no entraba cómodo junto a los demás stats de la
+    primera línea. Ambas stats siguen abreviadas (``F3B``, ``SF``) para no
+    saturar el ancho de la caja.
     """
 
     if screen_name is None:
@@ -286,8 +290,8 @@ def format_stats_line(screen_name: str | None, stats: "PlayerStats | None") -> l
         StatSegment(f"{stats.hands_played}m ", COLOR_HANDS),
         StatSegment(f"SF-{_fmt_pct(stats.saw_flop_pct)} ", COLOR_SAW_FLOP),
         StatSegment(f"V-{_fmt_pct(stats.vpip_pct)} ", COLOR_VPIP),
-        StatSegment(f"P-{_fmt_pct(stats.pfr_pct)} ", COLOR_PFR),
-        StatSegment(f"3B-{_fmt_pct(stats.three_bet_pct)}\n", COLOR_THREE_BET),
+        StatSegment(f"P-{_fmt_pct(stats.pfr_pct)}\n", COLOR_PFR),
+        StatSegment(f"3B-{_fmt_pct(stats.three_bet_pct)} ", COLOR_THREE_BET),
         StatSegment(f"F3B-{_fmt_pct(stats.fold_to_3bet_pct)}", COLOR_FOLD_TO_3BET),
     ]
 
