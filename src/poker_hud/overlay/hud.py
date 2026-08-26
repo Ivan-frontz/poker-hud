@@ -263,13 +263,14 @@ class SeatBoxWindow:
             pass
         self._top.configure(bg=_BACKGROUND)
 
-        # T25: 8pt (antes 9) para que las 3 líneas de stats entren cómodas
-        # en la caja más chica que pidió Ivan probando en vivo (ver
-        # DEFAULT_BOX_WIDTH/HEIGHT en overlay/layout.py).
+        # T25 bajó a 8pt (antes 9); T26 bajó otro escalón a 7pt para que las
+        # 3 líneas de stats sigan entrando en la caja aún más chica que
+        # pidió Ivan probando en vivo (ver DEFAULT_BOX_WIDTH/HEIGHT en
+        # overlay/layout.py).
         self._text = tk.Text(
             self._top,
             bg=_BACKGROUND,
-            font=("Sans", 8),
+            font=("Sans", 7),
             wrap="none",
             borderwidth=0,
             highlightthickness=0,

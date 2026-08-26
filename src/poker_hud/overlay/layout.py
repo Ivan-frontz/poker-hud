@@ -57,9 +57,11 @@ __all__ = [
 # ambos valores a pedido de Ivan probando en vivo ("la caja tapa de más");
 # el texto ahora entra igual con margen porque T25 también quitó el "%" de
 # cada stat (menos caracteres por línea, ver ``_fmt_pct``) y bajó el tamaño
-# de fuente de la caja (``SeatBoxWindow`` en overlay/hud.py).
-DEFAULT_BOX_WIDTH = 120
-DEFAULT_BOX_HEIGHT = 48
+# de fuente de la caja (``SeatBoxWindow`` en overlay/hud.py). T26 bajó otro
+# escalón (~17%) por el mismo pedido de Ivan en vivo, junto con la fuente a
+# 7pt (ver overlay/hud.py) para que las 3 líneas sigan entrando.
+DEFAULT_BOX_WIDTH = 100
+DEFAULT_BOX_HEIGHT = 40
 
 # Opacidad por defecto de las cajas (T20; bajada desde 0.80, que tapaba
 # demasiado la mesa de detrás). Vive aquí -no en overlay.hud, que ya importa
@@ -274,14 +276,19 @@ def format_stats_line(screen_name: str | None, stats: "PlayerStats | None") -> l
         # abajo) no pasa por acá y no le aplica este cambio.
         return "-" if pct is None else f"{pct:.0f}"
 
+    # T26: guion entre la etiqueta y el valor de cada stat porcentual
+    # ("SF-32" en vez de "SF32") a pedido de Ivan, que lo veía pegado y
+    # difícil de leer tras T25. El nº de manos (``{n}m``) no lleva
+    # etiqueta+número separados de la misma forma y no le aplica este
+    # cambio (no se pidió explícitamente).
     return [
         StatSegment(f"{screen_name}\n", COLOR_NAME),
         StatSegment(f"{stats.hands_played}m ", COLOR_HANDS),
-        StatSegment(f"SF{_fmt_pct(stats.saw_flop_pct)} ", COLOR_SAW_FLOP),
-        StatSegment(f"V{_fmt_pct(stats.vpip_pct)} ", COLOR_VPIP),
-        StatSegment(f"P{_fmt_pct(stats.pfr_pct)} ", COLOR_PFR),
-        StatSegment(f"3B{_fmt_pct(stats.three_bet_pct)}\n", COLOR_THREE_BET),
-        StatSegment(f"F3B{_fmt_pct(stats.fold_to_3bet_pct)}", COLOR_FOLD_TO_3BET),
+        StatSegment(f"SF-{_fmt_pct(stats.saw_flop_pct)} ", COLOR_SAW_FLOP),
+        StatSegment(f"V-{_fmt_pct(stats.vpip_pct)} ", COLOR_VPIP),
+        StatSegment(f"P-{_fmt_pct(stats.pfr_pct)} ", COLOR_PFR),
+        StatSegment(f"3B-{_fmt_pct(stats.three_bet_pct)}\n", COLOR_THREE_BET),
+        StatSegment(f"F3B-{_fmt_pct(stats.fold_to_3bet_pct)}", COLOR_FOLD_TO_3BET),
     ]
 
 
