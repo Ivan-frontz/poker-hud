@@ -127,6 +127,12 @@ Argumentos opcionales:
   otra. Usa este flag para fijar manualmente cuál seguir en ese caso. Si el
   ID no coincide con ninguna mesa abierta en ese momento, el HUD
   simplemente no muestra cajas hasta que esa mesa aparezca.
+- `--opacity FLOAT`: opacidad de las cajas del HUD, de 0.0 (invisible) a
+  1.0 (opaca), por defecto 0.32 (bastante transparente, para tapar lo
+  menos posible la mesa de detrás sin dejar de leer las stats). Valores
+  fuera de ese rango se rechazan con un error al arrancar. Requiere un
+  gestor de ventanas con compositor activo; sin uno Tk puede ignorar el
+  valor y la caja queda opaca igual, sin que sea un error.
 
 ### 5. Ajustar la posición de las cajas a mano
 

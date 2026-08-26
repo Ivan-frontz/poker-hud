@@ -25,6 +25,7 @@ import sys
 import threading
 from pathlib import Path
 
+from poker_hud.overlay.layout import DEFAULT_OPACITY
 from poker_hud.parser import Hand
 from poker_hud.stats import connect
 from poker_hud.watcher import HandHistoryWatcher
@@ -97,6 +98,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Segundos entre sondeos de la carpeta de hand history (por defecto 2.0).",
     )
     parser.add_argument(
+        "--opacity",
+        type=float,
+        default=DEFAULT_OPACITY,
+        help=(
+            "Opacidad de las cajas del HUD, de 0.0 (invisible) a 1.0 (opaca) "
+            f"(por defecto {DEFAULT_OPACITY}). Requiere un gestor de ventanas con "
+            "compositor activo; sin uno, Tk puede ignorarlo y la caja queda opaca "
+            "igual (ver poker_hud.overlay.hud)."
+        ),
+    )
+    parser.add_argument(
         "--tournament-id",
         default=None,
         help=(
@@ -117,6 +129,13 @@ def main(argv: list[str] | None = None) -> int:
             f"error: la carpeta de hand history no existe: {args.hand_history_dir}\n"
             "Revisa el README para activar el guardado de hand history de torneos "
             "en las opciones de PokerStars y localizar la carpeta.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if not 0.0 <= args.opacity <= 1.0:
+        print(
+            f"error: --opacity debe estar entre 0.0 y 1.0 (recibido: {args.opacity}).",
             file=sys.stderr,
         )
         return 1
@@ -147,5 +166,6 @@ def main(argv: list[str] | None = None) -> int:
         get_max_seats=state.get_max_seats,
         positions_path=positions_path,
         tournament_id=args.tournament_id,
+        opacity=args.opacity,
     )
     return 0
