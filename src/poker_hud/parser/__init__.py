@@ -155,7 +155,8 @@ _TABLE_RE = re.compile(
 )
 
 _SEAT_RE = re.compile(
-    r"^Seat (?P<seat>\d+): (?P<name>.+?) \((?P<chips>[\d,]+(?:\.\d+)?) in chips\)"
+    r"^Seat (?P<seat>\d+): (?P<name>.+?) \((?P<chips>[\d,]+(?:\.\d+)?) in chips"
+    r"(?:, \S+ bounty)?\)"
     r"(?P<sitout> is sitting out)?\s*$"
 )
 

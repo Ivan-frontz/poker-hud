@@ -280,3 +280,33 @@ def test_positions_are_consistent_with_button_seat():
     assert pia.position == "SB"
     assert quim.position == "BB"
     assert iva.position == "UTG"
+
+
+def test_progressive_ko_seat_lines_with_bounty_are_parsed():
+    # Torneos Progressive KO añaden el bounty acumulado directamente en la
+    # línea de asiento ("... in chips, €X.XX bounty)"); el regex de asientos
+    # debe seguir matcheando igual que en un torneo sin KO (T28).
+    hand = _one_hand("progressive_ko_bounty_seats.txt")
+
+    assert len(hand.players) == 6
+    names_by_seat = {p.seat: p.name for p in hand.players}
+    assert names_by_seat == {
+        1: "NZFIER",
+        2: "FatalNem",
+        3: "BerniBeau",
+        4: "flopipok",
+        5: "wakamayo3",
+        6: "kelet12",
+    }
+
+    kelet12 = hand.player_by_name("kelet12")
+    assert kelet12.chips == Decimal("47182")
+
+    berni = hand.player_by_name("BerniBeau")
+    assert berni.is_button and berni.position == "BTN"
+
+    # Las líneas "is connected"/"is disconnected" (eventos de T9) no deben
+    # romper el parseo del resto de la mano.
+    assert hand.pot == Decimal("800")
+    assert hand.winners == [("wakamayo3", Decimal("800"), "collected")]
+    assert not hand.is_cancelled
