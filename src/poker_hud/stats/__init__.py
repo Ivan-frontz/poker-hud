@@ -24,6 +24,7 @@ historial completo en memoria.
 from __future__ import annotations
 
 import sqlite3
+import threading
 from dataclasses import dataclass
 
 from poker_hud.parser import ActionType, Hand, Street
@@ -92,10 +93,20 @@ def _pct(numerator: int, denominator: int) -> float | None:
     return 100.0 * numerator / denominator
 
 
+# app.py (T6) comparte una única conexión entre el hilo del watcher (T3,
+# que escribe en cada mano nueva vía update_stats) y el hilo principal de
+# Tkinter del overlay (T5, que lee vía get_player_stats en cada refresco).
+# check_same_thread=False solo levanta la prohibición de sqlite3 de usar el
+# objeto fuera de su hilo de creación; sqlite3 sigue sin ser seguro ante
+# accesos concurrentes reales desde varios hilos, así que además serializamos
+# toda entrada/salida con este lock.
+_ACCESS_LOCK = threading.Lock()
+
+
 def connect(db_path: str = ":memory:") -> sqlite3.Connection:
     """Abre (y crea si hace falta) la base de SQLite con el esquema de stats."""
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     init_db(conn)
     return conn
 
@@ -136,57 +147,60 @@ def update_stats(conn: sqlite3.Connection, hand: Hand) -> None:
     ya se había procesado, se ignora en vez de contar dos veces.
     """
 
-    cur = conn.execute(
-        "INSERT OR IGNORE INTO processed_hands (hand_key) VALUES (?)",
-        (_hand_key(hand),),
-    )
-    if cur.rowcount == 0:
-        return
-
-    if hand.is_cancelled:
-        conn.commit()
-        return
-
-    events = _preflop_events(hand)
-
-    for player in hand.players:
-        if player.is_sitting_out:
-            continue
-
-        player_events = [e for e in events if e[0] == player.name]
-        vpip = any(action_type in _VOLUNTARY_ACTION_TYPES for _, action_type, _ in player_events)
-        pfr = any(action_type is ActionType.RAISE for _, action_type, _ in player_events)
-
-        facing_one_raise = [e for e in player_events if e[2] == 1]
-        three_bet_opportunity = bool(facing_one_raise)
-        three_bet_made = any(
-            action_type is ActionType.RAISE for _, action_type, _ in facing_one_raise
+    with _ACCESS_LOCK:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO processed_hands (hand_key) VALUES (?)",
+            (_hand_key(hand),),
         )
+        if cur.rowcount == 0:
+            return
 
-        conn.execute(
-            """
-            INSERT INTO player_stats (
-                screen_name, hands_played, vpip_count, pfr_count,
-                three_bet_opportunities, three_bet_count
+        if hand.is_cancelled:
+            conn.commit()
+            return
+
+        events = _preflop_events(hand)
+
+        for player in hand.players:
+            if player.is_sitting_out:
+                continue
+
+            player_events = [e for e in events if e[0] == player.name]
+            vpip = any(
+                action_type in _VOLUNTARY_ACTION_TYPES for _, action_type, _ in player_events
             )
-            VALUES (?, 1, ?, ?, ?, ?)
-            ON CONFLICT(screen_name) DO UPDATE SET
-                hands_played = hands_played + 1,
-                vpip_count = vpip_count + excluded.vpip_count,
-                pfr_count = pfr_count + excluded.pfr_count,
-                three_bet_opportunities = three_bet_opportunities + excluded.three_bet_opportunities,
-                three_bet_count = three_bet_count + excluded.three_bet_count
-            """,
-            (
-                player.name,
-                int(vpip),
-                int(pfr),
-                int(three_bet_opportunity),
-                int(three_bet_made),
-            ),
-        )
+            pfr = any(action_type is ActionType.RAISE for _, action_type, _ in player_events)
 
-    conn.commit()
+            facing_one_raise = [e for e in player_events if e[2] == 1]
+            three_bet_opportunity = bool(facing_one_raise)
+            three_bet_made = any(
+                action_type is ActionType.RAISE for _, action_type, _ in facing_one_raise
+            )
+
+            conn.execute(
+                """
+                INSERT INTO player_stats (
+                    screen_name, hands_played, vpip_count, pfr_count,
+                    three_bet_opportunities, three_bet_count
+                )
+                VALUES (?, 1, ?, ?, ?, ?)
+                ON CONFLICT(screen_name) DO UPDATE SET
+                    hands_played = hands_played + 1,
+                    vpip_count = vpip_count + excluded.vpip_count,
+                    pfr_count = pfr_count + excluded.pfr_count,
+                    three_bet_opportunities = three_bet_opportunities + excluded.three_bet_opportunities,
+                    three_bet_count = three_bet_count + excluded.three_bet_count
+                """,
+                (
+                    player.name,
+                    int(vpip),
+                    int(pfr),
+                    int(three_bet_opportunity),
+                    int(three_bet_made),
+                ),
+            )
+
+        conn.commit()
 
 
 def update_stats_from_hands(conn: sqlite3.Connection, hands: list[Hand]) -> None:
@@ -197,15 +211,16 @@ def update_stats_from_hands(conn: sqlite3.Connection, hands: list[Hand]) -> None
 def get_player_stats(conn: sqlite3.Connection, screen_name: str) -> PlayerStats | None:
     """Devuelve las stats acumuladas de un jugador, o ``None`` si no hay datos."""
 
-    row = conn.execute(
-        """
-        SELECT screen_name, hands_played, vpip_count, pfr_count,
-               three_bet_opportunities, three_bet_count
-        FROM player_stats
-        WHERE screen_name = ?
-        """,
-        (screen_name,),
-    ).fetchone()
+    with _ACCESS_LOCK:
+        row = conn.execute(
+            """
+            SELECT screen_name, hands_played, vpip_count, pfr_count,
+                   three_bet_opportunities, three_bet_count
+            FROM player_stats
+            WHERE screen_name = ?
+            """,
+            (screen_name,),
+        ).fetchone()
     if row is None:
         return None
     return PlayerStats(*row)

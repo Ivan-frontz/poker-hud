@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 
 import pytest
@@ -199,6 +200,46 @@ def test_on_hand_callback_is_invoked_per_new_hand(hh_dir, conn):
 
     assert len(seen) == 1
     assert seen[0].hand_id == "500100003"
+
+
+def test_watcher_survives_running_in_its_own_thread(hh_dir, conn):
+    """Regresión de T10.
+
+    ``app.py`` corre ``run_forever`` en un hilo aparte y comparte la misma
+    conexión con el overlay, que la lee desde el hilo principal (Tkinter).
+    Antes del fix, ``stats.connect`` abría la conexión sin
+    ``check_same_thread=False``: en cuanto el watcher (en su hilo) llamaba
+    a ``update_stats`` sobre una conexión creada en el hilo de test,
+    sqlite3 lanzaba ``ProgrammingError``. Los tests anteriores no lo
+    detectaban porque llaman a ``watcher.poll()``/``update_stats`` siempre
+    desde el mismo hilo. Aquí arrancamos un hilo real y leemos las stats
+    desde otro hilo distinto, tal y como hace el overlay.
+    """
+
+    path = hh_dir / "HH.txt"
+    path.write_text(ONE_HAND)
+
+    watcher = HandHistoryWatcher(hh_dir, conn)
+    errors: list[BaseException] = []
+
+    def _run() -> None:
+        try:
+            watcher.run_forever(interval_seconds=0.05, iterations=5)
+        except BaseException as exc:  # pragma: no cover - solo si hay regresión
+            errors.append(exc)
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    thread.join(timeout=5)
+
+    assert not thread.is_alive(), "el watcher no terminó a tiempo"
+    assert errors == []
+
+    # Leído desde el hilo de test (no el hilo del watcher), igual que hace
+    # el overlay desde el hilo principal de Tkinter en app.py.
+    jon = get_player_stats(conn, "Jon")
+    assert jon is not None
+    assert jon.hands_played == 1
 
 
 def test_preflop_action_types_are_preserved_through_the_watcher(hh_dir, conn):
