@@ -94,3 +94,40 @@ def test_find_poker_tables_matches_table_name_used_in_hand_history():
     windows = parse_wmctrl_output(SAMPLE_WMCTRL_OUTPUT)
     tables = find_poker_tables(windows)
     assert tables[0].table_name == "Trantor 25"
+
+
+# Línea real de `wmctrl -l` capturada contra PokerStars.ES bajo Wine
+# (T7, 2026-08-26): el título de una mesa de torneo en el cliente en
+# español no trae un nombre de mesa propio, va todo en una sola frase con
+# stakes, nivel de ciegas, ID de torneo, nº de mesa y usuario logueado.
+REAL_WMCTRL_LINE_ES = (
+    "0x04600002  0 150  120  1024 768  ivan-pc "
+    "€2 NL Hold'em [Super KO], €150 Gtd - 25/50 ante 5 - "
+    "Torneo 4022790069 mesa 2 - "
+    "Sesión iniciada con el nombre de usuario wakamayo3"
+)
+
+
+def test_find_poker_tables_recognises_spanish_tournament_title():
+    windows = parse_wmctrl_output([REAL_WMCTRL_LINE_ES])
+    tables = find_poker_tables(windows)
+
+    assert len(tables) == 1
+    table = tables[0]
+    assert table.tournament_id == "4022790069"
+    assert table.table_number == 2
+    # Sin nombre de mesa propio en el título, se reconstruye con el mismo
+    # formato "<id de torneo> <nº de mesa>" que usa el parser (T1) al leer
+    # la línea "Table '<id> <nº>' ..." del hand history real.
+    assert table.table_name == "4022790069 2"
+
+
+def test_find_poker_tables_still_recognises_english_title_alongside_spanish():
+    # El patrón en inglés se mantiene por si algún cliente lo devuelve así,
+    # sin que interfiera con el reconocimiento del título en español.
+    windows = parse_wmctrl_output([*SAMPLE_WMCTRL_OUTPUT, REAL_WMCTRL_LINE_ES])
+    tables = find_poker_tables(windows)
+
+    assert len(tables) == 2
+    table_names = {t.table_name for t in tables}
+    assert table_names == {"Trantor 25", "4022790069 2"}
