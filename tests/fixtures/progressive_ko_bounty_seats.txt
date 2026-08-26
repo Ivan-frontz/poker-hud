@@ -1,0 +1,37 @@
+PokerStars Hand #261871974071: Tournament #4022790072, €0.90+€0.90+€0.20 EUR Hold'em No Limit - Level XIII (350/700) - 2026/08/26 11:39:19 CET [2026/08/26 5:39:19 ET]
+Table '4022790072 1' 6-max Seat #3 is the button
+Seat 1: NZFIER (9915 in chips, €0.90 bounty)
+Seat 2: FatalNem (4028 in chips, €1.57 bounty)
+Seat 3: BerniBeau (10490 in chips, €0.90 bounty)
+Seat 4: flopipok (15514 in chips, €1.80 bounty)
+Seat 5: wakamayo3 (16425 in chips, €0.90 bounty)
+Seat 6: kelet12 (47182 in chips, €2.02 bounty)
+NZFIER: posts the ante 85
+FatalNem: posts the ante 85
+BerniBeau: posts the ante 85
+flopipok: posts the ante 85
+wakamayo3: posts the ante 85
+kelet12: posts the ante 85
+flopipok: posts small blind 350
+wakamayo3: posts big blind 700
+*** HOLE CARDS ***
+Dealt to wakamayo3 [5c 4h]
+kelet12: folds
+NZFIER is connected
+NZFIER is disconnected
+NZFIER is connected
+NZFIER: folds
+FatalNem: folds
+BerniBeau: folds
+flopipok: folds
+Uncalled bet (350) returned to wakamayo3
+wakamayo3 collected 800 from pot
+wakamayo3: doesn't show hand
+*** SUMMARY ***
+Total pot 800 | Rake 0
+Seat 1: NZFIER folded before Flop (didn't bet)
+Seat 2: FatalNem folded before Flop (didn't bet)
+Seat 3: BerniBeau (button) folded before Flop (didn't bet)
+Seat 4: flopipok (small blind) folded before Flop
+Seat 5: wakamayo3 (big blind) collected (800)
+Seat 6: kelet12 folded before Flop (didn't bet)
