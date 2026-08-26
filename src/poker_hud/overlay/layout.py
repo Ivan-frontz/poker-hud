@@ -32,6 +32,12 @@ __all__ = [
     "DEFAULT_BOX_WIDTH",
     "DEFAULT_BOX_HEIGHT",
     "DEFAULT_MAX_SEATS",
+    "COLOR_NAME",
+    "COLOR_HANDS",
+    "COLOR_VPIP",
+    "COLOR_PFR",
+    "COLOR_THREE_BET",
+    "StatSegment",
     "SeatBox",
     "compute_seat_position",
     "compute_seat_positions",
@@ -54,6 +60,24 @@ DEFAULT_MAX_SEATS = 9
 # ventana de mesa incluso con su propio ancho/alto restado.
 _RADIUS_RATIO = 0.42
 
+# Colores por stat (T12): cada stat de la caja se pinta en un color propio
+# en vez de un único verde, para poder distinguirlas de un vistazo. Elegidos
+# por contraste sobre el fondo casi negro de la caja (``hud._BACKGROUND``),
+# no por ningún significado semántico del color en sí.
+COLOR_NAME = "#e0e0e0"
+COLOR_HANDS = "#9e9e9e"
+COLOR_VPIP = "#4fa8ff"
+COLOR_PFR = "#ff9f40"
+COLOR_THREE_BET = "#ff5c5c"
+
+
+@dataclass(frozen=True)
+class StatSegment:
+    """Un tramo de texto de la caja de un asiento y el color en que se pinta."""
+
+    text: str
+    color: str
+
 
 @dataclass(frozen=True)
 class SeatBox:
@@ -64,7 +88,7 @@ class SeatBox:
     y: int
     width: int
     height: int
-    text: str = ""
+    segments: tuple[StatSegment, ...] = ()
 
 
 def _seat_angle(seat: int, max_seats: int) -> float:
@@ -136,31 +160,42 @@ def compute_seat_positions(
     }
 
 
-def format_stats_line(screen_name: str | None, stats: "PlayerStats | None") -> str:
-    """Texto a mostrar en la caja de un asiento.
+def format_stats_line(screen_name: str | None, stats: "PlayerStats | None") -> list[StatSegment]:
+    """Segmentos de texto a mostrar en la caja de un asiento, cada uno con su color (T12).
 
-    Un asiento vacío (``screen_name`` es ``None``) se muestra en blanco. Un
+    Un asiento vacío (``screen_name`` es ``None``) no produce segmentos. Un
     jugador sentado del que aún no hay manos registradas (``stats`` es
-    ``None``, o con ``hands_played == 0``) muestra sólo el nombre, sin
-    stats en "-" para no dar una falsa sensación de dato real con 0 manos.
+    ``None``, o con ``hands_played == 0``) muestra sólo el nombre y "- manos",
+    sin stats en "-" para no dar una falsa sensación de dato real con 0
+    manos.
+
+    Devuelve una lista de :class:`StatSegment` en vez de un string plano
+    porque cada stat se pinta de un color distinto (T12: gris para el nº de
+    manos, azul para VPIP, naranja para PFR, rojo para 3-bet); un único
+    ``tk.Label`` con un solo ``fg`` no puede mezclar colores dentro del mismo
+    texto, así que quien pinta esto (:class:`poker_hud.overlay.hud.SeatBoxWindow`)
+    necesita el texto ya trozeado por color.
     """
 
     if screen_name is None:
-        return ""
+        return []
 
     if stats is None or stats.hands_played == 0:
-        return f"{screen_name}\n- manos"
+        return [
+            StatSegment(f"{screen_name}\n", COLOR_NAME),
+            StatSegment("- manos", COLOR_HANDS),
+        ]
 
     def _fmt_pct(pct: float | None) -> str:
         return "-" if pct is None else f"{pct:.0f}%"
 
-    return (
-        f"{screen_name}\n"
-        f"{stats.hands_played}m "
-        f"V{_fmt_pct(stats.vpip_pct)} "
-        f"P{_fmt_pct(stats.pfr_pct)} "
-        f"3B{_fmt_pct(stats.three_bet_pct)}"
-    )
+    return [
+        StatSegment(f"{screen_name}\n", COLOR_NAME),
+        StatSegment(f"{stats.hands_played}m ", COLOR_HANDS),
+        StatSegment(f"V{_fmt_pct(stats.vpip_pct)} ", COLOR_VPIP),
+        StatSegment(f"P{_fmt_pct(stats.pfr_pct)} ", COLOR_PFR),
+        StatSegment(f"3B{_fmt_pct(stats.three_bet_pct)}", COLOR_THREE_BET),
+    ]
 
 
 def resolve_max_seats(max_seats: int | None, seat_players: dict[int, str]) -> int:
@@ -216,7 +251,7 @@ def build_seat_boxes(
                 y=y,
                 width=box_width,
                 height=box_height,
-                text=format_stats_line(screen_name, stats),
+                segments=tuple(format_stats_line(screen_name, stats)),
             )
         )
     return boxes

@@ -2,10 +2,16 @@ import pytest
 
 from poker_hud.overlay import WindowGeometry
 from poker_hud.overlay.layout import (
+    COLOR_HANDS,
+    COLOR_NAME,
+    COLOR_PFR,
+    COLOR_THREE_BET,
+    COLOR_VPIP,
     DEFAULT_BOX_HEIGHT,
     DEFAULT_BOX_WIDTH,
     DEFAULT_MAX_SEATS,
     SeatBox,
+    StatSegment,
     build_seat_boxes,
     compute_seat_position,
     compute_seat_positions,
@@ -89,13 +95,17 @@ def test_compute_seat_position_clamps_when_box_bigger_than_table():
     assert y == 20
 
 
+def _joined_text(segments):
+    return "".join(s.text for s in segments)
+
+
 def test_format_stats_line_for_empty_seat():
-    assert format_stats_line(None, None) == ""
+    assert format_stats_line(None, None) == []
 
 
 def test_format_stats_line_for_player_without_hands_yet():
-    line = format_stats_line("Villain88", None)
-    assert line == "Villain88\n- manos"
+    segments = format_stats_line("Villain88", None)
+    assert _joined_text(segments) == "Villain88\n- manos"
 
 
 def test_format_stats_line_for_player_with_stats():
@@ -107,8 +117,8 @@ def test_format_stats_line_for_player_with_stats():
         three_bet_opportunities=4,
         three_bet_count=1,
     )
-    line = format_stats_line("Villain88", stats)
-    assert line == "Villain88\n40m V25% P20% 3B25%"
+    segments = format_stats_line("Villain88", stats)
+    assert _joined_text(segments) == "Villain88\n40m V25% P20% 3B25%"
 
 
 def test_format_stats_line_shows_dash_for_stats_without_opportunities():
@@ -120,8 +130,39 @@ def test_format_stats_line_shows_dash_for_stats_without_opportunities():
         three_bet_opportunities=0,
         three_bet_count=0,
     )
-    line = format_stats_line("Villain88", stats)
-    assert "3B-" in line
+    segments = format_stats_line("Villain88", stats)
+    assert "3B-" in _joined_text(segments)
+
+
+def test_format_stats_line_colors_each_stat_differently():
+    # T12: cada stat en su propio color en vez de todo en el mismo verde.
+    stats = PlayerStats(
+        screen_name="Villain88",
+        hands_played=40,
+        vpip_count=10,
+        pfr_count=8,
+        three_bet_opportunities=4,
+        three_bet_count=1,
+    )
+    segments = format_stats_line("Villain88", stats)
+
+    assert segments == [
+        StatSegment("Villain88\n", COLOR_NAME),
+        StatSegment("40m ", COLOR_HANDS),
+        StatSegment("V25% ", COLOR_VPIP),
+        StatSegment("P20% ", COLOR_PFR),
+        StatSegment("3B25%", COLOR_THREE_BET),
+    ]
+    # Los 4 colores de stats son todos distintos entre sí.
+    assert len({COLOR_HANDS, COLOR_VPIP, COLOR_PFR, COLOR_THREE_BET}) == 4
+
+
+def test_format_stats_line_colors_name_and_hands_without_hands_played_yet():
+    segments = format_stats_line("Villain88", None)
+    assert segments == [
+        StatSegment("Villain88\n", COLOR_NAME),
+        StatSegment("- manos", COLOR_HANDS),
+    ]
 
 
 def test_build_seat_boxes_returns_one_box_per_seat_including_empty_ones():
@@ -143,11 +184,11 @@ def test_build_seat_boxes_returns_one_box_per_seat_including_empty_ones():
     assert all(isinstance(b, SeatBox) for b in boxes)
 
     by_seat = {b.seat: b for b in boxes}
-    assert by_seat[1].text == "Hero\n- manos"
-    assert by_seat[3].text == "Villain88\n20m V25% P20% 3B50%"
-    # Asientos sin jugador sentado: caja sin texto (no se debería dibujar).
-    assert by_seat[2].text == ""
-    assert by_seat[4].text == ""
+    assert _joined_text(by_seat[1].segments) == "Hero\n- manos"
+    assert _joined_text(by_seat[3].segments) == "Villain88\n20m V25% P20% 3B50%"
+    # Asientos sin jugador sentado: caja sin segmentos (no se debería dibujar).
+    assert by_seat[2].segments == ()
+    assert by_seat[4].segments == ()
 
 
 def test_build_seat_boxes_never_calls_get_stats_for_empty_seats():
