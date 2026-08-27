@@ -60,8 +60,30 @@ __all__ = [
 # de fuente de la caja (``SeatBoxWindow`` en overlay/hud.py). T26 bajó otro
 # escalón (~17%) por el mismo pedido de Ivan en vivo, junto con la fuente a
 # 7pt (ver overlay/hud.py) para que las 3 líneas sigan entrando.
-DEFAULT_BOX_WIDTH = 100
-DEFAULT_BOX_HEIGHT = 40
+#
+# T30: Ivan reportó en vivo que con ``hands_played`` de 3 dígitos (torneos
+# largos, p.ej. "150m") el "P-XX" (PFR) del final de la primera línea
+# quedaba cortado y no se veía -el ``Text`` que la pinta usa ``wrap="none"``
+# (``SeatBoxWindow`` en overlay/hud.py), así que lo que no entra en el
+# ancho de la caja simplemente no se ve, no hace salto de línea-. T26 había
+# ajustado el ancho justo para el caso de 1-2 dígitos de manos; el de 3
+# dígitos no se había medido. Medido con ``tkinter.font.Font.measure``
+# contra la fuente real de la caja (Sans 7pt, la misma de
+# ``SeatBoxWindow``): la primera línea más larga posible es
+# "999m SF-100 V-100 P-100" (3 dígitos de manos y los tres porcentajes en
+# 100, que sí es un valor alcanzable -p.ej. VPIP/PFR/vio-flop del 100% con
+# pocas manos jugadas-), que mide ~106px de texto más los 8px de ``padx``
+# del ``Text`` (4px a cada lado) = ~114px. Se sube el ancho a 128 (no al
+# mínimo justo de 114) para dejar margen ante diferencias de renderizado de
+# fuente entre sistemas (la médida de arriba es de esta máquina, no la de
+# Ivan) sin volver a agrandar la caja más de lo que T25/T26 bajaron a
+# pedido suyo. El alto sube en la misma proporción (~15%, de 40 a 46) para
+# que las 3 líneas de stats -a 7pt, con ``linespace`` de ~13px, más
+# ``pady``=2px arriba y abajo- sigan entrando cómodas verticalmente; no
+# había un reporte de corte vertical, pero el cálculo (3×13 + 2×2 = 43)
+# muestra que ya iba justa con el alto de T26 (40).
+DEFAULT_BOX_WIDTH = 128
+DEFAULT_BOX_HEIGHT = 46
 
 # Opacidad por defecto de las cajas (T20; bajada desde 0.80, que tapaba
 # demasiado la mesa de detrás). Vive aquí -no en overlay.hud, que ya importa

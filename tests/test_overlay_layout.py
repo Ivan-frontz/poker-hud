@@ -261,6 +261,54 @@ def test_format_stats_line_colors_name_and_hands_without_hands_played_yet():
     ]
 
 
+def test_default_box_width_fits_the_longest_possible_first_line():
+    """T30: la primera línea no debe cortarse ni con 3 dígitos de manos ni con 100%.
+
+    ``format_stats_line`` no hace wrap (``wrap="none"`` en ``SeatBoxWindow``,
+    overlay/hud.py): si la primera línea no entra en el ancho de la caja,
+    el sobrante simplemente no se ve, no salta de línea. Este test mide el
+    ancho real de texto de la primera línea más larga posible -3 dígitos de
+    manos jugadas (torneos largos, el caso que reportó Ivan) y los tres
+    porcentajes de esa línea en 100 (SF/V/P, todos alcanzables con pocas
+    manos)- contra la misma fuente que usa la caja (``Sans`` 7pt) y contra
+    ``DEFAULT_BOX_WIDTH`` menos el ``padx`` del ``Text`` (4px a cada lado).
+    Se salta si no hay un servidor X disponible (mismo motivo por el que
+    overlay/hud.py en sí no tiene tests, ver su docstring): no hay forma de
+    medir texto con Tk sin poder crear una ventana.
+    """
+
+    tk = pytest.importorskip("tkinter")
+    tkfont = pytest.importorskip("tkinter.font")
+    try:
+        root = tk.Tk()
+    except tk.TclError:
+        pytest.skip("no hay servidor X disponible para medir texto con Tk")
+
+    try:
+        stats = PlayerStats(
+            screen_name="Villain88",
+            hands_played=999,
+            vpip_count=999,
+            pfr_count=999,
+            three_bet_opportunities=4,
+            three_bet_count=4,
+            fold_to_3bet_opportunities=5,
+            fold_to_3bet_count=5,
+            saw_flop_count=999,
+        )
+        segments = format_stats_line("Villain88", stats)
+        first_line = _joined_text(segments).split("\n")[1]
+        assert first_line == "999m SF-100 V-100 P-100"
+
+        font = tkfont.Font(root=root, family="Sans", size=7)
+        text_width = font.measure(first_line)
+    finally:
+        root.destroy()
+
+    text_padding = 4 * 2  # padx=4 a cada lado del Text de SeatBoxWindow.
+    assert text_width + text_padding <= DEFAULT_BOX_WIDTH
+
+
 def test_build_seat_boxes_returns_one_box_per_seat_including_empty_ones():
     seat_players = {1: "Hero", 3: "Villain88"}
     stats_by_name = {
